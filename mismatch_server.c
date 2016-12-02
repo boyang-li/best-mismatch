@@ -26,18 +26,19 @@ typedef struct Client {
     struct client *next;
 } Client;
 
+Client *top = NULL;
+int clnum = 0;  /* server counts the number of connected clients */
+
 void error(char *msg);
 void bindAndListen(int *fd, int port);
-void addClient(int fd, struct in_addr addr);
+void addClient(int *fd, struct in_addr addr);
 void removeClient(int fd);
 void broadcast(char *msg, int size);
 
 int main(int argc, char **argv)
 {
     int sfd, cfd;
-    char buf[BUFSIZE];
     char answer[ANSSIZE];
-    Client *clhead = NULL;
 
     /* Configure server socket, bind and listen, abort on errors */
     bindAndListen(&sfd, port);
@@ -71,11 +72,12 @@ int main(int argc, char **argv)
                  */
                 if (cl) {
                     /* might remove cl from set, so can't be in the loop */
-                    whatsup(cl);
+                    // TODO: client input validation goes here...
+                    checkInput(cl);
                 }
                 /* The listen fd has data, accept client connection */
                 if (FD_ISSET(lfd, &readfds)) {
-                    acceptConn(&cfd);
+                    acceptConn(&sfd, &cfd);
                 }
             }
 
@@ -130,7 +132,34 @@ void bindAndListen(int *fd, int port) {
     fprintf(stdout, "Listening on %d...\n", port);
 }
 
-void acceptConn(int *fd) {
+void acceptConn(int *sfd, int *cfd) {
     struct sockaddr_in caddr; /* Client addr */
+    socklen_t socklen = sizeof(caddr);
+    int len, i, c;
+    char buf[BUFSIZE];
 
+    if ((*cfd = accept(*sfd, (struct sockaddr *)&caddr, &socklen)) < 0) {
+        error("accept");
+    } else {
+        printf("connection from %s\n", inet_ntoa(caddr.sin_addr));
+
+        addClient(cfd, caddr.sin_addr);
+
+        // WIP: try echo to client for now
+    }
+}
+
+void addClient(int *fd, struct in_addr addr) {
+    Client *cl = malloc(sizeof(Client));
+    if (!cl) {
+        fprintf(stderr, "Out of memory!\n");
+        exit(1);
+    }
+    fprintf(stdout, "Adding client %s\n", inet_ntoa(addr));
+    fflush(stdout);
+    cl->fd = *fd;
+    cl->ipaddr = addr;
+    cl->next = top;
+    top = cl;
+    clnum++;
 }
