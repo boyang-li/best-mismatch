@@ -4,49 +4,133 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <time.h>
-#include <errno.h>
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/signal.h>
-#include <sys/wait.h>
-#include <syslog.h>
+// #include <time.h>
+// #include <sys/time.h>
 
-#define SERVICE "best-mismatch" /* Name of TCP service */
 #define BUFSIZE 1024
 #define BACKLOG 5
+#define ANSSIZE 128
 
-int port = 12345; // TODO: change this to take an argument
+short port = 12345; // TODO: change this to take an argument
+char greeting[] = "Welcome to The Best Mismatch!\r\n";
 
 // TODO: move to the client header
 typedef struct Client {
-  int fd;
-  struct in_addr ipaddr;
-  struct client *next;
+    int fd;
+    struct in_addr ipaddr;
+    struct client *next;
 } Client;
 
-static char greeting[] = "Welcome to The Best Mismatch!\r\n";
-
-static void grimReadper(int sig);
-static void addClient(int fd, struct in_addr addr);
-static void removeClient(int fd);
-static void broadcast(char *msg, int size);
+void error(char *msg);
+void bindAndListen(int *fd, int port);
+void addClient(int fd, struct in_addr addr);
+void removeClient(int fd);
+void broadcast(char *msg, int size);
 
 int main(int argc, char **argv)
 {
+    int sfd, cfd;
+    char buf[BUFSIZE];
+    char answer[ANSSIZE];
+    Client *clhead = NULL;
 
-  return 0;
+    /* Configure server socket, bind and listen, abort on errors */
+    bindAndListen(&sfd, port);
+
+    /* Main server loop, can only be stopped by signal kill */
+    while (1) {
+        int lfd = sfd; /* The listening fd */
+        fd_set readfds; /* A set for all fds to be selected */
+        FD_ZERO(&readfds); /* Clear all entries from the set */
+        FD_SET(sfd, &readfds); /* Add the listening fd to the set */
+
+        for (cl = clhead; cl; cl = cl->next) {
+            FD_SET(cl->fd, &readfds);
+            if (cl->fd > lfd) {
+                lfd = cl->fd;
+            }
+        }
+
+        int rv;
+        rv = select(lfd + 1, &readfds, NULL, NULL, NULL); /* No timeout */
+        if (rv < 0) {
+            error("select");
+        } else {
+            for (cl = clhead; cl; cl = cl->next) {
+                if (FD_ISSET(cl->fd, &readfds)) {
+                    break;
+                }
+                /*
+                 * it's not very likely that more than one client will drop at
+                 * once, we process only one each select() for now;
+                 */
+                if (cl) {
+                    /* might remove cl from set, so can't be in the loop */
+                    whatsup(cl);
+                }
+                /* The listen fd has data, accept client connection */
+                if (FD_ISSET(lfd, &readfds)) {
+                    acceptConn(&cfd);
+                }
+            }
+
+    }
+
+    return 0;
 }
 
-static void grimReadper(int sig){
-  int savedErrno; /* Save 'errno' in case changed here */
+/* Wrapper for perror */
+void error(char *msg) {
+  perror(msg);
+  exit(1);
+}
 
-  savedErrno = errno;
-  while (waitpid(-1, NULL, WNOHANG) > 0)
-    continue;
-  errno = savedErrno
+/* Configure server socket, bind and listen, abort on errors */
+void bindAndListen(int *fd, int port) {
+    if ((*fd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+        error("socket");
+    }
+
+    /* Allow re-using the sticky server ports */
+    int optval = 1;
+    if (setsockopt(*fd, SOL_SOCKET, SO_REUSEADDR, (void *) &optval,
+        sizeof(int)) == -1) {
+        error("setsockopt - REUSEADDR");
+    }
+
+    struct sockaddr_in saddr; /* server's addr */
+
+    /* Setup the server's Internet address */
+    memset(&saddr, '\0', sizeof saddr);
+
+    /* Configure Internet address */
+    saddr.sin_family = AF_INET;
+
+    /* Configure server's IP address */
+    saddr.sin_addr.s_addr = INADDR_ANY;
+
+    /* This is the port to listen */
+    saddr.sin_port = htons(port);
+
+    /* bind: associate this socket with a port */
+    if (bind(*fd, (struct sockaddr *) &saddr, sizeof(saddr)) < 0) {
+        error("bind");
+    }
+
+    /* listen: make this socket ready to accept connection requests */
+    if (listen(*fd, BACKLOG)) {
+        error("listen");
+    }
+
+    fprintf(stdout, "Listening on %d...\n", port);
+}
+
+void acceptConn(int *fd) {
+    struct sockaddr_in caddr; /* Client addr */
+
 }
