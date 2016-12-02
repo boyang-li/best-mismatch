@@ -15,6 +15,7 @@
 #define BUFSIZE 1024
 #define BACKLOG 5
 #define ANSSIZE 128
+#define MAX_USRNAME 64
 
 short port = 12345; // TODO: change this to take an argument
 char greeting[] = "Welcome to The Best Mismatch!\r\n";
@@ -23,6 +24,7 @@ char greeting[] = "Welcome to The Best Mismatch!\r\n";
 typedef struct Client {
     int fd;
     struct in_addr ipaddr;
+	char usrname[MAX_USRNAME];
     struct client *next;
 } Client;
 
