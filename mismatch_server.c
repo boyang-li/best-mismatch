@@ -32,8 +32,8 @@ Client *top = NULL;
 int clnum = 0;  /* server counts the number of connected clients */
 
 void error(char *msg);
-void bindAndListen(int *fd, int port);
-void addClient(int *fd, struct in_addr addr);
+void bindAndListen(int fd, int port);
+void addClient(int fd, struct in_addr addr);
 void removeClient(int fd);
 void broadcast(char *msg, int size);
 
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     char answer[ANSSIZE];
 
     /* Configure server socket, bind and listen, abort on errors */
-    bindAndListen(&sfd, port);
+    bindAndListen(sfd, port);
 
     /* Main server loop, can only be stopped by signal kill */
     while (1) {
@@ -95,14 +95,14 @@ void error(char *msg) {
 }
 
 /* Configure server socket, bind and listen, abort on errors */
-void bindAndListen(int *fd, int port) {
-    if ((*fd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+void bindAndListen(int fd, int port) {
+    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
         error("socket");
     }
 
     /* Allow re-using the sticky server ports */
     int optval = 1;
-    if (setsockopt(*fd, SOL_SOCKET, SO_REUSEADDR, (void *) &optval,
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *) &optval,
         sizeof(int)) == -1) {
         error("setsockopt - REUSEADDR");
     }
@@ -122,12 +122,12 @@ void bindAndListen(int *fd, int port) {
     saddr.sin_port = htons(port);
 
     /* bind: associate this socket with a port */
-    if (bind(*fd, (struct sockaddr *) &saddr, sizeof(saddr)) < 0) {
+    if (bind(fd, (struct sockaddr *) &saddr, sizeof(saddr)) < 0) {
         error("bind");
     }
 
     /* listen: make this socket ready to accept connection requests */
-    if (listen(*fd, BACKLOG)) {
+    if (listen(fd, BACKLOG)) {
         error("listen");
     }
 
@@ -151,7 +151,7 @@ void acceptConn(int *sfd, int *cfd) {
     }
 }
 
-void addClient(int *fd, struct in_addr addr) {
+void addClient(int fd, struct in_addr addr) {
     Client *cl = malloc(sizeof(Client));
     if (!cl) {
         fprintf(stderr, "Out of memory!\n");
@@ -159,9 +159,35 @@ void addClient(int *fd, struct in_addr addr) {
     }
     fprintf(stdout, "Adding client %s\n", inet_ntoa(addr));
     fflush(stdout);
-    cl->fd = *fd;
+    cl->fd = fd;
     cl->ipaddr = addr;
     cl->next = top;
     top = cl;
     clnum++;
+}
+
+void removeClient(int fd) {
+    struct client **cl;
+    for (cl = &top; *cl && (*cl)->fd != fd; cl = &(*cl)->next)
+        ;
+    if (*cl) {
+        struct client *clnext = (*cl)->next;
+        fprintf(stdout, "Removing client %s\n", inet_ntoa((*cl)->ipaddr));
+        fflush(stdout);
+        free(*cl);
+        *cl = clnext;
+        clnum--;
+    } else {
+        fprintf(stderr, "Trying to remove fd %d, but it's not found\n", fd);
+        fflush(stderr);
+    }
+}
+
+void broadcast(char *msg, int size) {
+    struct client *cl;
+
+    /* should probably check write() return value and perhaps remove client */
+    for (cl = top; cl; cl = cl->next) {
+        write(cl->fd, msg, size);
+    }
 }
