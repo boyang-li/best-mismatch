@@ -213,3 +213,13 @@ void removeClient(Client *cl) {
         fflush(stderr);
     }
 }
+
+int net_newline_location(char *buf, int inbuf) {
+	int i;
+	for (i = 0; i < inbuf - 1; i++){
+		if ((buf[i] == '\r') && (buf[i + 1] == '\n')){
+			return i;
+		}
+	}
+	return -1;
+}
