@@ -12,7 +12,7 @@
 // #include <time.h>
 // #include <sys/time.h>
 
-#define BUFSIZE 1024
+#define BUFSIZE 128
 #define BACKLOG 5
 #define MAX_USRNAME 128
 
@@ -20,14 +20,13 @@
 typedef struct client {
     // File descriptor to write into and to read from
     int fd;
-    // Client's IP address
-    struct in_addr ipaddr;
     // An array of int for client answers
     int *answers;
     // Before user entered a name, he cannot issue commands
-    int state;
+    short state;
     // At most 128 char including the terminator '\0'
 	char usrname[MAX_USRNAME];
+    char buf[BUFSIZE];
     // Pointer to the current end-of-buf position
     int inbuf;
     // Pointer to the next client node
@@ -37,60 +36,70 @@ typedef struct client {
 void error(char *msg);
 void bindAndListen(int port);
 void acceptConn();
-void addClient(int fd, struct in_addr addr);
-void removeClient(int fd);
-void broadcast(char *msg, int size);
+void addClient(int fd);
+void removeClient(Client *cl);
 
 int lfd; // This is the listening fd
 short port = 12345; // TODO: change this to take an argument
-char greeting[] = "Welcome to The Best Mismatch!\r\n";
 Client *cur_cl = NULL; /* The current client node */
 int clnum = 0;  /* server counts the number of connected clients */
 
+char *greeting = "Welcome.\r\n";
+char user_prompt[] = "What is your user name?\r\n";
+
 int main(int argc, char **argv) {
+    Client *cl = NULL; /* Current connected client */
+
     /* Configure server socket, bind and listen, abort on errors */
     bindAndListen(port);
 
     /* Main server loop, can only be stopped by signal kill */
     while (1) {
-        int maxfd = lfd; /* The listening fd */
-        fd_set fdlist; /* A set for all fds to be selected */
+        int maxfd = lfd; /* First set maxfd to be listenfd */
+        fd_set fdlist; /* A list for all client fds */
         FD_ZERO(&fdlist); /* Clear all entries from the set */
-        FD_SET(lfd, &fdlist); /* Add the listening fd to the set */
-        Client *cl;
+        FD_SET(lfd, &fdlist); /* Add listenfd to teh set */
 
-        printf("Reset fd set\n");
-
-        for (cl = top; cl; cl = cl->next) {
+        /* Filling up the set with client fds */
+        for (cl = cur_cl; cl; cl = cl->next) {
             FD_SET(cl->fd, &fdlist);
+            /* Update the maxfd to be the highest-numbered fd */
             if (cl->fd > maxfd) {
                 maxfd = cl->fd;
             }
         }
 
-        printf("maxfd = %d\n", maxfd);
-        int rv;
-        rv = select(maxfd + 1, &fdlist, NULL, NULL, NULL); /* No timeout */
-        if (rv < 0) {
+        if (select(maxfd + 1, &fdlist, NULL, NULL, NULL) < 0) {
             error("select");
         } else {
-            for (cl = top; cl; cl = cl->next) {
-                if (FD_ISSET(cl->fd, &fdlist))
+            printf("Selected fd = %d\n", maxfd);
+            for (cl = cur_cl; cl; cl = cl->next) {
+                printf("looking for the client with correct fd...\n");
+                if (cl && FD_ISSET(cl->fd, &fdlist))
                     break;
-                /*
-                 * it's not very likely that more than one client will drop at
-                 * once, we process only one each select() for now;
-                 */
-                // if (cl)
-                    /* might remove cl from set, so can't be in the loop */
-                    // TODO: client input validation goes here...
-                    // checkInput(cl);
+            }
+            /*
+             * it's not very likely that more than one client will drop at
+             * once, we process only one each select() for now;
+             */
+            if (cl) { // Returning client
+                printf("Removing existing client %s...\n", cl->usrname);
+                removeClient(cl);
+            }
+
+            if (FD_ISSET(lfd, &fdlist)) { // New client
+                printf("Connecting new client...\n");
 
                 /* The listen fd has data, accept client connection */
-                if (FD_ISSET(lfd, &fdlist))
-                    acceptConn();
+                acceptConn();
 
+
+
+            } else {
+                fprintf(stderr, "Shouldn't have happened!\n");
+                exit(1);
             }
+
         }
 
     }
@@ -141,88 +150,66 @@ void bindAndListen(int port) {
         error("listen");
     }
 
-    fprintf(stdout, "fd %d Listening on %d...\n", lfd, port);
+    fprintf(stdout, "listenfd %d Listening on %d...\n", lfd, port);
 }
 
 void acceptConn() {
-    printf("Accepting connection...\n");
-
     int fd;
     struct sockaddr_in caddr; /* Client addr */
     socklen_t socklen = sizeof(caddr);
     int len;
     char buf[BUFSIZE];
-    char answer[ANSSIZE];
+    // char answer[BUFSIZE];
 
     if ((fd = accept(lfd, (struct sockaddr*) &caddr, &socklen)) < 0) {
         error("accept");
     } else {
-        printf("connection from %s\n", inet_ntoa(caddr.sin_addr));
-        addClient(fd, caddr.sin_addr);
+        printf("Connection from %s!\n", inet_ntoa(caddr.sin_addr));
 
-        // WIP: try echo to client for now
+        printf("Client fd = %d\n", fd);
+        // addClient(fd);
+        write(fd, user_prompt, sizeof user_prompt - 1);
 
-        /* And this is the same too. */
-        if ((len = read(fd, buf, sizeof(buf) - 1)) < 0) {
-            error("read");
-        }
-        buf[len] = '\0';
-        /*
-         * Here we should be converting from the network newline convention to the
-         * unix newline convention, if the string can contain newlines.
-         */
-        fprintf(stdout, "The other side said: %s\n", buf);
-
-        sprintf(answer, "You said %s", buf);
-
-        //write it back
-
-        if ((len = write(fd, answer, strlen(answer))) != strlen(answer) ) {
-            error("write");
-        }
 
         /* This is the same, except there's nothing to unlink. */
-        close(fd);
+        // close(*fd);
     }
 }
 
-void addClient(int fd, struct in_addr addr) {
-    Client *cl = malloc(sizeof(Client));
-    if (!cl) {
-        fprintf(stderr, "Out of memory!\n");
-        exit(1);
-    }
-    fprintf(stdout, "Adding client %s\n", inet_ntoa(addr));
-    fflush(stdout);
-    cl->fd = fd;
-    cl->ipaddr = addr;
-    cl->next = cur_cl;
-    cur_cl = cl;
-    clnum++;
+void addClient(int fd) {
+    // char *usrname = malloc(MAX_USRNAME);
+    // char *buf = malloc(BUFSIZE);
+    // int *answers = malloc(3*sizeof(int));
+
+    // Client *c = malloc(sizeof(Client));
+    // if (!c) {
+    //     fprintf(stderr, "Out of memory!\n");
+    //     exit(1);
+    // }
+    // fflush(stdout);
+    // c->fd = fd;
+    // c->answers = answers;
+    // c->state = 0;
+    // c->buf = buf;
+    // c->inbuf = 0;
+    // c->next = cur_cl;
+    // cur_cl = c;
+    // clnum++;
 }
 
-void removeClient(int fd) {
-    Client **cl; // Array of clients
+void removeClient(Client *cl) {
+    // Client **cl; // Array of clients
     // Traverse the the array untill we find our client
-    for (cl = &cur_cl; *cl && (*cl)->fd != fd; cl = &(*cl)->next);
-    if (*cl) {
-        Client *next_cl = (*cl)->next;
-        fprintf(stdout, "Removing client %s\n", inet_ntoa((*cl)->ipaddr));
+    // for (cl = &cur_cl; *cl && (*cl)->fd != fd; cl = &(*cl)->next);
+    if (cl) {
+        Client *next_cl = cl->next;
+        fprintf(stdout, "Removing client fd %d...\n", cl->fd);
         fflush(stdout);
-        free(*cl);
-        *cl = next_cl;
+        free(cl);
+        cl = next_cl;
         clnum--;
     } else {
-        fprintf(stderr, "Trying to remove fd %d, but it's not found\n", fd);
+        fprintf(stderr, "Trying to remove fd %d, but it's not found\n", cl->fd);
         fflush(stderr);
-    }
-}
-
-void broadcast(char *msg, int size) {
-    Client *cl;
-
-    /* should probably check write() return value and perhaps remove client */
-    for (cl = top; cl; cl = cl->next) {
-        write(cl->fd, msg, size);
     }
 }
