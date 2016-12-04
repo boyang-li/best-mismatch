@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include "app.h"
 
 /* Wrapper for perror */

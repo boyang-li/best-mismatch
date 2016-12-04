@@ -42,7 +42,7 @@ int validate_user(char *name);
 char *alloc_str(int size);
 // Server methods
 void bindAndListen(int port);
-void acceptConn();
+int acceptConn();
 void addClient(int fd);
 void removeClient(Client *cl);
 int net_newline_location(char *buf, int inbuf);
