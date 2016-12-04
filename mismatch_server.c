@@ -25,7 +25,7 @@ typedef struct client {
     // Before user entered a name, he cannot issue commands
     short state;
     // At most 128 char including the terminator '\0'
-	char usrname[MAX_USRNAME];
+  char usrname[MAX_USRNAME];
     char buf[BUFSIZE];
     // Pointer to the current end-of-buf position
     int inbuf;
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 
                 /* The listen fd has data, accept client connection */
                 int fd = acceptConn();
-				
+
 
 
 
@@ -156,10 +156,10 @@ void bindAndListen(int port) {
 
 void acceptConn() {
     int fd;
-	int inbuf; // how many bytes currently in buffer?
-	int bufleft; // how much room left in buffer?
-	char *after; // pointer to position after the (valid) data in buf
-	int nlloc; // location of network newline
+  int inbuf; // how many bytes currently in buffer?
+  int bufleft; // how much room left in buffer?
+  char *after; // pointer to position after the (valid) data in buf
+  int nlloc; // location of network newline
     struct sockaddr_in caddr; /* Client addr */
     socklen_t socklen = sizeof(caddr);
     int len;
@@ -178,36 +178,36 @@ void acceptConn() {
 
         /* This is the same, except there's nothing to unlink. */
         // close(*fd);
-		
+
     }
-	/*This doesnt need to go here
-	if it need to be moved then 
-	this function needs to return int
-	specifically return fd;*/
-	inbuf = 0;          // buffer is empty; has no bytes
+  /*This doesnt need to go here
+  if it need to be moved then
+  this function needs to return int
+  specifically return fd;*/
+  inbuf = 0;          // buffer is empty; has no bytes
     bufleft = sizeof(buf); // bufleft == capacity of the whole buffer
     after = buf;        // start writing at beginning of buf
-	if ((nbytes = read(fd, after, buffleft)) > 0) {
-		inbuf = inbuf + nbytes; //amount of bytes read into buffer
-		nlloc = find_network_newline(buf,inbuf);
-		
-		if (nlloc >= 0) { //there is a netnewline terminated command to process
-			//replace both \r and \n with \0
-			buf[nlloc] = '\0';
-			buf[nlloc+1] = '\0';
-			
-			/*TODO:process the commands here*/
-			
-			//remove previous command by replacing it with everything after the \r\n
-			//shift everything up
-			nlloc+=2;
-			inbuf = inbuf - nlloc;
-			//we are preparing to remove the previous command allong with the 2 '\0'
-			//so inbuf is cleared
-			memmove(buf, buf+nlloc,inbuf); //everything behind \0\0 is pushed to the front
-			
-		}
-	}
+  if ((nbytes = read(fd, after, buffleft)) > 0) {
+    inbuf = inbuf + nbytes; //amount of bytes read into buffer
+    nlloc = find_network_newline(buf,inbuf);
+
+    if (nlloc >= 0) { //there is a netnewline terminated command to process
+      //replace both \r and \n with \0
+      buf[nlloc] = '\0';
+      buf[nlloc+1] = '\0';
+
+      /*TODO:process the commands here*/
+
+      //remove previous command by replacing it with everything after the \r\n
+      //shift everything up
+      nlloc+=2;
+      inbuf = inbuf - nlloc;
+      //we are preparing to remove the previous command allong with the 2 '\0'
+      //so inbuf is cleared
+      memmove(buf, buf+nlloc,inbuf); //everything behind \0\0 is pushed to the front
+
+    }
+  }
 }
 
 void addClient(int fd) {
@@ -249,13 +249,13 @@ void removeClient(Client *cl) {
 }
 
 int net_newline_location(char *buf, int inbuf) {
-	int i;
-	for (i = 0; i < inbuf - 1; i++){
-		if ((buf[i] == '\r') && (buf[i + 1] == '\n')){
-			return i;
-		}
-	}
-	return -1;
+  int i;
+  for (i = 0; i < inbuf - 1; i++){
+    if ((buf[i] == '\r') && (buf[i + 1] == '\n')){
+      return i;
+    }
+  }
+  return -1;
 }
 
 char *process_partial()
