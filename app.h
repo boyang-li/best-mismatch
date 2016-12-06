@@ -44,6 +44,8 @@ char *alloc_str(int size);
 void addClient(int fd);
 void removeClient(Client *cl);
 int net_newline_location(char *buf, int inbuf);
+int process_args(int, char **, QNode **, Node *, struct client *, struct client *);
+int tokenize(char *, char **);
 // Server methods
 void bindAndListen(int port);
 int acceptConn(int fd);
