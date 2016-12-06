@@ -14,9 +14,10 @@
 // #include <time.h>
 // #include <sys/time.h>
 
-#define BUFSIZE 1024
+#define BUFSIZE 128
 #define BACKLOG 5
-#define MAX_USRNAME 128
+#define INPUT_ARG_MAX_NUM 3
+#define DELIM " \r\n"
 
 // Use a linked list to maintain client data
 typedef struct client {
@@ -27,7 +28,7 @@ typedef struct client {
 	// Before user entered a name, he cannot issue commands
 	short state;
 	// At most 128 char including the terminator '\0'
-	char usrname[MAX_USRNAME];
+	char usrname[BUFSIZE];
 	// Designated buffer for user input
 	char buf[BUFSIZE];
 	// Pointer to the current end-of-buf position
@@ -36,15 +37,16 @@ typedef struct client {
 	struct client *next;
 } Client;
 
-// Basic methods
+// Utility methods
 void error(char *msg);
 int validate_user(char *name);
 char *alloc_str(int size);
-// Server methods
-void bindAndListen(int port);
-int acceptConn();
 void addClient(int fd);
 void removeClient(Client *cl);
 int net_newline_location(char *buf, int inbuf);
+void process_partial(int fd);
+// Server methods
+void bindAndListen(int port);
+int acceptConn(int fd);
 
 #endif
