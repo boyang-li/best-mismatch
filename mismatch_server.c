@@ -88,6 +88,7 @@ int main(int argc, char **argv) {
 						//TODO: tokenize command, and process each commands
 
 						//update inbuf
+						where+=2;
 						inbuf -= nbytes;
 
 						//remove the full line from the buffer
