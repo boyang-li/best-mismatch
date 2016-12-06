@@ -1,7 +1,7 @@
 /* TCP server for the best-mismatch app */
 #include "app.h"
 
-int lfd; // This is the listening fd
+int lfd; // The listening fd
 int clnum = 0;  /* server counts the number of connected clients */
 short port = 12345; // TODO: change this to take an argument
 char greeting[] = "Welcome.\r\n";
@@ -12,8 +12,10 @@ int main(int argc, char **argv) {
 	/* Configure server socket, bind and listen, abort on errors */
 	bindAndListen(port);
 
+	int fd;
 	Client *cl = NULL; /* Current connected client */
 	char buf[BUFSIZE]; /* Buffer string to store a whole line of command */
+	int nbytes; /* How many bytes we add to buffer */
 	int inbuf; /* how many bytes currently in buffer? */
 	int bufleft = sizeof(buf); /* how much room left in buffer? */
 	char *after; /* pointer to position after the (valid) data in buf */
@@ -57,9 +59,7 @@ int main(int argc, char **argv) {
 
 			if (FD_ISSET(lfd, &fdlist)) { // New client
 				/* The listen fd has data, accept client connection */
-				int fd = -1;
-				if (acceptConn(fd) < 0)
-					error("accept");
+				fd = acceptConn(fd);
 /*
  * Begin partial-read
  * Read the buffer until end-of-line, and get the whole line for tokenizing,
@@ -70,8 +70,8 @@ int main(int argc, char **argv) {
 				inbuf = 0; // buffer is empty; has no bytes
 				bufleft = sizeof(buf); // begin with amount of the whole buffer
       			after = buf; // start writing at beginning of buf
-				int nbytes; /* How many bytes we add to buffer */
-				if ((nbytes = read(fd, after, bufleft)) > 0) {
+
+				while ((nbytes = read(fd, after, bufleft)) > 0) {
 					//amount of bytes read into buffer
 					inbuf += nbytes;
 
@@ -81,22 +81,41 @@ int main(int argc, char **argv) {
 					if (where >= 0) { // OK. we have a full line
 						//replace \r with \0
 						buf[where] = '\0';
+						buf[where+1] = '\0';
 
 						//TODO: remove it after testing
 						printf("Next message: %s\n", buf);
 
 						//TODO: tokenize command, and process each commands
 
-						//update inbuf
-						where+=2;
-						inbuf -= nbytes;
+						// Skip the '\0\0' terminators, 'where' is the number
+						// of bytes in the full line
+						where += 2;
 
-						//remove the full line from the buffer
+						// Remove the full line from the buffer, in memory
 						memmove(buf, buf + where, inbuf);
+
+						// Remove bytes from inbuf as removing the full line
+						inbuf -= where;
+
+						// Buffer gains room as removing the full line
+						bufleft += where;
 					}
-					// update bufleft and after, in preparation for the next read
-			        bufleft -= nbytes;
-			        after = (buf + where);
+
+					// Buffer loses room after read
+					bufleft -= nbytes;
+
+					if (bufleft > 0){
+						// update after, in preparation for the next read
+		        		after = &buf[inbuf];
+					} else {
+						// Buffer is full, there is no next read.
+						fprintf(stderr, "Buffer overflow!\n");
+
+						//TODO: deal with buffer overflow properly, client is
+						// prompted with error message, and program continues
+						break;
+					}
 				}
 				// close fd so that the other side knows
 				close(fd);
@@ -157,23 +176,13 @@ void bindAndListen(int port) {
 int acceptConn(int fd) {
 	struct sockaddr_in caddr; /* Client addr */
 	socklen_t socklen = sizeof(caddr);
-	int len;
-	char buf[BUFSIZE];
-	// char answer[BUFSIZE];
 
 	if ((fd = accept(lfd, (struct sockaddr*) &caddr, &socklen)) < 0) {
 		error("accept");
 	} else {
 		printf("Connection from %s!\n", inet_ntoa(caddr.sin_addr));
 
-		printf("Client fd = %d\n", fd);
-		// addClient(fd);
 		write(fd, user_prompt, sizeof user_prompt - 1);
-
-
-		/* This is the same, except there's nothing to unlink. */
-		// close(*fd);
-
 	}
 
 	return fd;
