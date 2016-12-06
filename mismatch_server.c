@@ -9,10 +9,15 @@ char user_prompt[] = "What is your user name?\r\n";
 Client *cur_cl = NULL; /* The current client node */
 
 int main(int argc, char **argv) {
-	Client *cl = NULL; /* Current connected client */
-
 	/* Configure server socket, bind and listen, abort on errors */
 	bindAndListen(port);
+
+	Client *cl = NULL; /* Current connected client */
+	char buf[BUFSIZE]; /* Buffer string to store a whole line of command */
+	int inbuf; /* how many bytes currently in buffer? */
+	int bufleft = sizeof(buf); /* how much room left in buffer? */
+	char *after; /* pointer to position after the (valid) data in buf */
+	int where; /* location of network newline */
 
 	/* Main server loop, can only be stopped by signal kill */
 	while (1) {
@@ -43,25 +48,59 @@ int main(int argc, char **argv) {
 			 * it's not very likely that more than one client will drop at
 			 * once, we process only one each select() for now;
 			 */
-			if (cl) { // Returning client
+			if (cl) { // Existing client
 				printf("Removing existing client %s...\n", cl->usrname);
-				removeClient(cl);
+				//TODO: Not there yet. In future, we might remove dropped
+				// clients periodically
+				// removeClient(cl);
 			}
 
 			if (FD_ISSET(lfd, &fdlist)) { // New client
-				printf("Connecting new client...\n");
-
 				/* The listen fd has data, accept client connection */
 				int fd = -1;
 				if (acceptConn(fd) < 0)
 					error("accept");
+/*
+ * Begin partial-read
+ * Read the buffer until end-of-line, and get the whole line for tokenizing,
+ * the line string should be 'buf' itself for memory efficientcy.
+ * 'buf', 'inbuf', 'bufleft', 'after'and 'where' should not be modified except
+ * partial-read code.
+ */
+				inbuf = 0; // buffer is empty; has no bytes
+				bufleft = sizeof(buf); // begin with amount of the whole buffer
+      			after = buf; // start writing at beginning of buf
+				int nbytes; /* How many bytes we add to buffer */
+				if ((nbytes = read(fd, after, bufleft)) > 0) {
+					//amount of bytes read into buffer
+					inbuf += nbytes;
 
+					// call find_network_newline, store result in 'where'
+					where = net_newline_location(buf,inbuf);
 
-				process_partial(fd);
+					if (where >= 0) { // OK. we have a full line
+						//replace \r with \0
+						buf[where] = '\0';
 
+						//TODO: remove it after testing
+						printf("Next message: %s\n", buf);
 
+						//TODO: tokenize command, and process each commands
 
+						//update inbuf
+						inbuf -= nbytes;
 
+						//remove the full line from the buffer
+						memmove(buf, buf + where, inbuf);
+					}
+					// update bufleft and after, in preparation for the next read
+			        bufleft -= nbytes;
+			        after = (buf + where);
+				}
+				// close fd so that the other side knows
+				close(fd);
+
+				/* End of partial-read */
 			} else {
 				fprintf(stderr, "Shouldn't have happened!\n");
 				exit(1);
@@ -136,34 +175,6 @@ int acceptConn(int fd) {
 
 	}
 
-  /*This doesnt need to go here
-  if it need to be moved then
-  this function needs to return int
-  specifically return fd;*/
-	//inbuf = 0;          // buffer is empty; has no bytes
-	//bufleft = sizeof(buf); // bufleft == capacity of the whole buffer
-	//after = buf;        // start writing at beginning of buf
-	//if ((nbytes = read(fd, after, buffleft)) > 0) {
-	//inbuf = inbuf + nbytes; //amount of bytes read into buffer
-	//nlloc = find_network_newline(buf,inbuf);
-
-	//if (nlloc >= 0) { //there is a netnewline terminated command to process
-	  //replace both \r and \n with \0
-	  //buf[nlloc] = '\0';
-	  //buf[nlloc+1] = '\0';
-
-	  /*TODO:process the commands here*/
-
-	  //remove previous command by replacing it with everything after the \r\n
-	  //shift everything up
-	  //nlloc+=2;
-	  //inbuf = inbuf - nlloc;
-	  //we are preparing to remove the previous command allong with the 2 '\0'
-	  //so inbuf is cleared
-	  //memmove(buf, buf+nlloc,inbuf); //everything behind \0\0 is pushed to the front
-
-		//}
-	//}
 	return fd;
 }
 
