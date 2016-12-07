@@ -28,9 +28,9 @@ typedef struct client {
 	// Before user entered a name, he cannot issue commands
 	short state;
 	// At most 128 char including the terminator '\0'
-	char usrname[BUFSIZE];
+	char *usrname;
 	// Designated buffer for user input
-	char buf[BUFSIZE];
+	char *buf;
 	// Pointer to the current end-of-buf position
 	int inbuf;
 	// Pointer to the next client node
@@ -41,7 +41,7 @@ typedef struct client {
 void error(char *msg);
 int validate_user(char *name);
 char *alloc_str(int size);
-void addClient(int fd);
+Client *addClient(int fd, char *name);
 void removeClient(Client *cl);
 int net_newline_location(char *buf, int inbuf);
 int process_args(int, char **, QNode **, Node *, struct client *, struct client *);
