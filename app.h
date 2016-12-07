@@ -48,6 +48,6 @@ int process_args(int, char **, QNode **, Node *, struct client *, struct client 
 int tokenize(char *, char **);
 // Server methods
 void bindAndListen(int port);
-int acceptConn(int fd);
+int acceptConn();
 
 #endif

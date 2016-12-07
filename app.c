@@ -1,4 +1,4 @@
-// #include <ctype.h>
+#include <ctype.h>
 #include "app.h"
 
 /*
@@ -52,7 +52,7 @@ int net_newline_location(char *buf, int inbuf) {
  */
 int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 struct client *current_client, struct client *head) {
-	QNode *qtree = *root;
+	// QNode *qtree = *root;
 
 	if (cmd_argc <= 0) {
 		return 0;
