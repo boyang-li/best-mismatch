@@ -41,7 +41,7 @@ typedef struct client {
 void error(char *msg);
 int validate_user(char *name);
 char *alloc_str(int size);
-Client *addClient(int fd, char *name);
+Client *addClient(int fd, char *buf);
 void removeClient(Client *cl);
 int net_newline_location(char *buf, int inbuf);
 int process_args(int, char **, QNode **, Node *, struct client *, struct client *);

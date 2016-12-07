@@ -123,9 +123,7 @@ int main(int argc, char **argv) {
 								write(fd, name_error, sizeof name_error - 1);
 								write(fd, user_prompt, sizeof user_prompt - 1);
 							}
-						}
-
-						// Process message Ends---------------------------
+						} // Line-process ends
 
 						// Skip the '\0\0' terminators, 'where' is the number
 						// of bytes in the full line
