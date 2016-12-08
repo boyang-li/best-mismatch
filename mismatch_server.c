@@ -1,58 +1,62 @@
 /* TCP server for the best-mismatch app */
 #include "app.h"
 
-int lfd; /* The listening fd */
-int clnum = 0;  /* server counts the number of connected clients */
+int clnum = 1;  /* server counts the number of connected clients */
 char greeting[] = "Welcome.\r\nGo ahead and enter user commands>\r\n";
 char user_prompt[] = "What is your user name?\r\n";
 char name_error[] = "ERROR: User name must be at least 8 and at most "
-            "128 characters, and can only contain alphanumeric "
-            "characters.\r\n";
+			"128 characters, and can only contain alphanumeric "
+			"characters.\r\n";
+char ans_error[] = "ERROR: Answer must be one of 'y', 'n'.\r\n";
+
 QNode *root = NULL;
 Node *interests = NULL;
-Client *cl_head = NULL; /* The head client node */
-Client *cl_tail = NULL; /* The tail client node */
+
+
+int lfd;
 
 int main(int argc, char **argv) {
+	// Check for input file path
 	if (argc < 2) {
-        printf ("To run the program ./mismatch_server <name of input file>\n");
-        return 1;
-    }
+		printf ("To run the program ./mismatch_server <name of input file>\n");
+		return 1;
+	}
 
-    // read interests from file
-    interests = get_list_from_file (argv[1]);
+	// read interests from file
+	interests = get_list_from_file (argv[1]);
+	if (interests == NULL)
+		return 1;
 
-    if (interests == NULL)
-        return 1;
+	// build question tree
+	root = add_next_level (root,  interests);
 
-    // build question tree
-    root = add_next_level (root,  interests);
+	//TODO: remove after testing
+	print_qtree (root, 0);
 
-    //TODO: remove after testing
-    print_qtree (root, 0);
+	Client *cl_head = NULL; /* The head client node */
+	Client *cl_tail = NULL; /* The tail client node */
+	Client *cl = NULL;
 
 	/* Configure server socket, bind and listen, abort on errors */
-	short port = 55692; // TODO: change this to take an argument
-	bindAndListen(port);
+	bindAndListen(PORT);
 
-	char buf[BUFSIZE]; /* Buffer string to store a whole line of command */
+	// char buf[BUFSIZE]; /* Buffer string to store a whole line of command */
 	int nbytes; /* How many bytes we add to buffer */
-	int inbuf; /* how many bytes currently in buffer? */
-	int bufleft = sizeof(buf); /* how much room left in buffer? */
-	char *after; /* pointer to position after the (valid) data in buf */
+	// int inbuf; /* how many bytes currently in buffer? */
+	// int bufleft; /* how much room left in buffer? */
+	// char *after; /* pointer to position after the (valid) data in buf */
 	int where; /* location of network newline */
 
 	/* Main server loop, can only be stopped by signal kill */
 	while (1) {
-		int cfd; /* This is the client fd */
-		int maxfd = lfd; /* First set maxfd to be listenfd */
-		fd_set fdlist; /* A list for all client fds */
-		FD_ZERO(&fdlist); /* Clear all entries from the set */
-		FD_SET(lfd, &fdlist); /* Add listenfd to teh set */
-		Client *cl = NULL; /* This is the current connected client */
+		fd_set fdlist;
+		int maxfd = lfd;
+		FD_ZERO(&fdlist);
+		FD_SET(lfd, &fdlist);
 
-		/* Filling up the set with client fds */
+		/* Filling up the working set with client fds */
 		for (cl = cl_head; cl; cl = cl->next) {
+			// printf("Adding fd: %d to fdlist...\n", cl->fd);
 			FD_SET(cl->fd, &fdlist);
 			/* Update the maxfd to be the highest-numbered fd */
 			if (cl->fd > maxfd) {
@@ -60,132 +64,109 @@ int main(int argc, char **argv) {
 			}
 		}
 
+		printf("looping. maxfd: %d\n", maxfd);
 		if (select(maxfd + 1, &fdlist, NULL, NULL, NULL) < 0) {
 			error("select");
 		} else {
-			for (cl = cl_head; cl; cl = cl->next) {
-				if (cl && FD_ISSET(cl->fd, &fdlist))
-					break;
+			if (FD_ISSET(lfd, &fdlist)) {
+				int newfd = acceptConn();
+				// FD_SET(newfd, &fdlist);
+				cl = addClient(newfd);
+
+				if (cl_tail) {
+					cl->next = cl_tail->next;
+					cl_tail->next = cl;
+				} else {
+					cl_head = cl;
+					cl_tail = cl;
+				}
+				printf("Accepting new fd: %d\n", newfd);
+
+				// Ask the client for his username
+				write(newfd, user_prompt, sizeof user_prompt - 1);
 			}
 
-			printf("lfd: %d\n", lfd);
-			printf("maxfd: %d\n", maxfd);
-			if (cl)
-				printf("active cl fd: %d\n", cl->fd);
+			for (cl = cl_head; cl; cl = cl->next) {
+				if (cl && FD_ISSET(cl->fd, &fdlist)) {
+					/* Partial-read
+					 * Read the buffer until end-of-line, and get the whole line
+					 * for processing.
+					 */
+					if ((nbytes = read(cl->fd, cl->after, cl->bufleft)) > 0) {
+						//amount of bytes read into buffer
+						cl->inbuf += nbytes;
 
-			/* Client connection
-			 * it's not very likely that more than one client will drop at
-			 * once, we process only one each select() for now;
-			 */
-			if (FD_ISSET(lfd, &fdlist)) {
-				/* The listen fd has data, accept client connection */
-				cfd = acceptConn();
+						// call find_network_newline, store result in 'where'
+						where = net_newline_location(cl->buf, cl->inbuf);
 
-				// First, ask the client for his username
-				write(cfd, user_prompt, sizeof user_prompt - 1);
+						if (where >= 0) { // OK. we have a full line
+							//replace \r with \0
+							cl->buf[where] = '\0';
+							cl->buf[where+1] = '\0';
 
-				/* Partial-read
-				 * Read the buffer until end-of-line, and get the whole line
-				 * for processing.
-				 */
-				inbuf = 0; // buffer is empty; has no bytes
-				bufleft = sizeof(buf); // begin with amount of the whole buffer
-      			after = buf; // start writing at beginning of buf
+							//TODO: remove it after testing
+							printf("Line extracted: %s\n", cl->buf);
 
-				while ((nbytes = read(cfd, after, bufleft)) > 0) {
-					//amount of bytes read into buffer
-					inbuf += nbytes;
+							// Process args-------------------------
+							int cmd_argc;
+							char *cmd_argv[INPUT_ARG_MAX_NUM];
+							cmd_argc = tokenize(cl->buf, cmd_argv);
 
-					// call find_network_newline, store result in 'where'
-					where = net_newline_location(buf,inbuf);
+							int rc = process_args(cmd_argc, cmd_argv, &root,
+								interests, cl, cl_head);
 
-					if (where >= 0) { // OK. we have a full line
-						//replace \r with \0
-						buf[where] = '\0';
-						buf[where+1] = '\0';
+							if (rc < 0) {
+								//close connection for client
+								close(cl->fd);
 
-						//TODO: remove it after testing
-						printf("Line extracted: %s\n", buf);
-						int cmd_argc;
-						char *cmd_argv[INPUT_ARG_MAX_NUM];
 
-						/* Line-process
-						 * Verify the client before processing any command.
-						 */
-						if (cl) { // Active client
-							/* Check client state
-							 * 1 - took test; 0 - didn't take test
-							 */
-							printf("Active client: %s!\n", cl->usrname);
-
-							//TODO: Tokenize command and process them
-							cmd_argc = tokenize(buf, cmd_argv);
-
-							// process_args(cmd_argc, cmd_argv, &root, interests,
-		 				// 				cl, cl_head);
-
-						} else if (validate_user(buf) == 1) {
-							// Add new client to list
-							cl = addClient(cfd, buf);
-							if (!cl_head) {
-						    	printf("The new client is head.\n");
-						    	cl_head = cl;
-						    	cl_tail = cl;
-						    } else {
-						    	printf("Append the new client to list.\n");
-						    	cl->next = cl_tail->next;
-						    	cl_tail->next = cl;
-						    }
-
-							if (cl) {
-								write(cfd, greeting, sizeof greeting - 1);
-							    clnum++;
-							} else { // This shouldn't happen
-								fprintf(stderr, "Failed to add client!\n");
-						        exit(1);
 							}
+							//---------------------------------------
+
+							// Skip the '\0\0' terminators, 'where' is the number
+							// of bytes in the full line
+							where += 2;
+
+							// Remove the full line from the buffer, in memory
+							memmove(cl->buf, cl->buf + where, cl->inbuf);
+
+							// Remove bytes from inbuf as removing the full line
+							cl->inbuf -= where;
+
+							// Buffer gains room as removing the full line
+							cl->bufleft += where;
+						}
+
+						// Buffer loses room after read
+						cl->bufleft -= nbytes;
+
+						if (cl->bufleft > 0){
+							// update after, in preparation for the next read
+			        		cl->after = &((cl->buf)[cl->inbuf]);
 						} else {
-							write(cfd, name_error, sizeof name_error - 1);
-							write(cfd, user_prompt, sizeof user_prompt - 1);
-						} // Line-process ends
+							// Buffer is full, there is no next read.
+							fprintf(stderr, "Buffer overflow!\n");
 
-						// Skip the '\0\0' terminators, 'where' is the number
-						// of bytes in the full line
-						where += 2;
-
-						// Remove the full line from the buffer, in memory
-						memmove(buf, buf + where, inbuf);
-
-						// Remove bytes from inbuf as removing the full line
-						inbuf -= where;
-
-						// Buffer gains room as removing the full line
-						bufleft += where;
+							//TODO: deal with buffer overflow properly, client is
+							// prompted with error message, and program continues
+							break;
+						}
 					}
 
-					// Buffer loses room after read
-					bufleft -= nbytes;
 
-					if (bufleft > 0){
-						// update after, in preparation for the next read
-		        		after = &buf[inbuf];
-					} else {
-						// Buffer is full, there is no next read.
-						fprintf(stderr, "Buffer overflow!\n");
-
-						//TODO: deal with buffer overflow properly, client is
-						// prompted with error message, and program continues
-						break;
-					}
 				}
+			}
+
 				// close fd so that the other side knows
-				// close(fd);
+				// close(cfd);
 
 				/* End of partial-read */
-			} else {
-				fprintf(stderr, "Shouldn't have happened!\n");
-				exit(1);
-			}
+
+
+			// else {
+			// 	fprintf(stderr, "Shouldn't have happened!\n");
+			// 	exit(1);
+			// }
 
 		}
 
@@ -248,49 +229,49 @@ int acceptConn() {
 	return fd;
 }
 
-Client *addClient(int fd, char *buf) {
-    // First, search for client with the same username
+Client *addClient(int fd) {
+	// First, search for client with the same username
 	Client *c = NULL;
-	for (c = cl_head; c; c = c->next) {
-		printf("looking for the client with name: %s\n", buf);
-		if (strcmp(c->usrname, buf) == 0) {
-			printf("found client: %s\n", c->usrname);
-			return c;
-		}
+	// for (c = cl_head; c; c = c->next) {
+	// 	printf("looking for the client with name: %s\n", buf);
+	// 	if (strcmp(c->usrname, buf) == 0) {
+	// 		printf("found client: %s\n", c->usrname);
+	// 		return c;
+	// 	}
+	// }
+
+	// printf("creating new client with name: %s\n", buf);
+	c = malloc(sizeof(Client));
+	if (!c) {
+		fprintf(stderr, "Out of memory!\n");
+		exit(1);
 	}
 
-	printf("creating new client with name: %s\n", buf);
-    c = malloc(sizeof(Client));
-    if (!c) {
-        fprintf(stderr, "Out of memory!\n");
-        exit(1);
-    }
 
-    int size = strlen(buf) + 1;
-    c->usrname = alloc_str(size);
-    strncpy(c->usrname, buf, size);
-    c->fd = fd;
-    c->buf = buf;
-    c->inbuf = 0;
-    c->state = 0;
-    c->answers = NULL;
+	c->fd = fd;
+	c->buf = alloc_str(BUFSIZE);
+	c->usrname = alloc_str(NAME_SIZE);
+	c->after = c->buf;
+	c->inbuf = 0;
+	c->bufleft = BUFSIZE;
+	c->state = 0;
+	c->answers = NULL;
 
-    return c;
+	return c;
 }
 
 void removeClient(Client *cl) {
-    // Client **cl; // Array of clients
-    // Traverse the the array untill we find our client
-    // for (cl = &cur_cl; *cl && (*cl)->fd != fd; cl = &(*cl)->next);
-    if (cl) {
-        Client *next_cl = cl->next;
-        fprintf(stdout, "Removing client fd %d...\n", cl->fd);
-        fflush(stdout);
-        free(cl);
-        cl = next_cl;
-        clnum--;
-    } else {
-        fprintf(stderr, "Trying to remove fd %d, but it's not found\n", cl->fd);
-        fflush(stderr);
-    }
+	Client *cur;
+	// Traverse the the array untill we find our client
+	for (cur = cl_head; cur->next; cur = cur->next) {
+		if (cur->next == cl) {
+			fprintf(stdout, "Removing client fd %d...\n", cl->fd);
+			fflush(stdout);
+			cur->next = cur->next->next;
+			free(cl->buf);
+			free(cl->usrname);
+			free(cl);
+			break;
+		}
+	}
 }

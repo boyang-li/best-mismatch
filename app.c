@@ -1,12 +1,12 @@
 #include <ctype.h>
 #include "app.h"
 
-int *play_game(char* name, QNode *root, Node *interests);
+// int *play_game(char* name, QNode *root, Node *interests);
 int validate_answer(char *answer);
 void wrap_up();
 void print_mismatches(Node *list, char *name);
 char *question_prompt = "Do you like %s? (y/n)\n";
-//QNode *root = NULL;    
+//QNode *root = NULL;
 //Node *interests = NULL;
 Node *user_list = NULL;
 /*
@@ -37,54 +37,65 @@ int validate_user(char *name){
 	return valid;
 }
 
-int *play_game(char *name, QNode *root, Node *interests){
-	char answer[MAX_LINE];
-	int *ans_arr;
-	
-	printf("Collecting your interests\n");
-	QNode *prev, *curr;
-    prev = curr = root;
-	Node *i = interests;
-	int ans;
-	int index=0;
-	ans_arr = (int*) malloc(sizeof(int));
-	while (i){
-		printf(question_prompt, i->str);
-                
-		// read answer to prompt
-        scanf("%s", answer);
-        ans = validate_answer(answer);
-                
-        // if answer if not valid, continue to loop
-        if (ans == 2)
-			continue;
-		if (ans == -2){
-			break;
-		}
-                    
-		prev = curr;
-        curr = find_branch(curr, ans);
-		ans_arr[index] = ans;
-		ans_arr = realloc(ans_arr, ((index+1)*sizeof(int)));
-        i = i->next;
-		index += 1;
-    }
-	// add user to the end of the list
-	
-	int *answers[(sizeof(ans_arr) - 1)];
-	if (ans!=-2){
-		*answers = ans_arr;
-	
-		user_list = prev->children[ans].fchild;
-		prev->children[ans].fchild = add_user(user_list, name);
-		printf("Test complete.");
-	}else{
-		*answers[0] = -2;
-		printf("Test prematurely exitted. Answers not saved");
+void process_answer(Client *cl, char *answer, QNode *root, Node *interests) {
+	int rc = validate_answer(answer);
+	if ( rc== 2) {
+		write(cl->fd, ans_error, sizeof ans_error - 1);
+	} else if (rc == 1) { // Yes
+		/* code */
+	} else { // No
+
 	}
-	free(ans_arr);
-	return *answers;
 }
+
+// int *play_game(Client *cl, char *answer, QNode *root, Node *interests){
+// 	// char answer[MAX_LINE];
+// 	// int *ans_arr;
+
+// 	printf("Collecting your interests\n");
+// 	QNode *prev, *curr;
+//     prev = curr = root;
+// 	Node *i = interests;
+// 	int ans;
+// 	int index=0;
+// 	// ans_arr = (int*) malloc(sizeof(int));
+// 	while (i){
+// 		printf(question_prompt, i->str);
+
+// 		// read answer to prompt
+//         scanf("%s", answer);
+//         ans = validate_answer(answer);
+
+//         // if answer if not valid, continue to loop
+//         if (ans == 2)
+// 			continue;
+// 		if (ans == -2){
+// 			break;
+// 		}
+
+// 		prev = curr;
+//         curr = find_branch(curr, ans);
+// 		ans_arr[index] = ans;
+// 		ans_arr = realloc(ans_arr, ((index+1)*sizeof(int)));
+//         i = i->next;
+// 		index += 1;
+//     }
+// 	// add user to the end of the list
+
+// 	int *answers[(sizeof(ans_arr) - 1)];
+// 	if (ans!=-2){
+// 		*answers = ans_arr;
+
+// 		user_list = prev->children[ans].fchild;
+// 		prev->children[ans].fchild = add_user(user_list, name);
+// 		printf("Test complete.");
+// 	}else{
+// 		*answers[0] = -2;
+// 		printf("Test prematurely exitted. Answers not saved");
+// 	}
+// 	free(ans_arr);
+// 	return *answers;
+// }
 
 /* Allocate memory dynamically for string, remember to free it after! */
 char *alloc_str(int size) {
@@ -108,7 +119,7 @@ int net_newline_location(char *buf, int inbuf) {
  * Read and process commands
  */
 int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
-		 struct client *current_client, struct client *head) {
+		 struct client *cl, struct client *head) {
 	QNode *qtree = *root;
 
 	if (cmd_argc <= 0) {
@@ -119,31 +130,38 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 * user is now need to be disconnected. */
 		return -1; //done in main loop fdset is not passed into here
 
-	} else if (strcmp(cmd_argv[0], "do_test") == 0 && cmd_argc == 1) {
+	} else if (strcmp(cmd_argv[0], "do_test") == 0 && cmd_argc == 1 &&
+		cl->state == 0) {
 		/* The specified user is ready to start answering questions. You
 		 * need to make sure that the user answers each question only
 		 * once.
 		 */
-		current_client->answers = play_game(current_client->usrname, qtree, interests);
-		if(current_client->answers[0]!=-2){
-			
-		current_client->state = 1;
+		cl->answers = play_game(cl->usrname, qtree, interests);
+		if(cl->answers[0]!=-2){
+
+		cl->state = 1;
 		}else{
 			return -1;
 		}
 		return 0;
 
-	} else if (strcmp(cmd_argv[0], "get_all") == 0 && cmd_argc == 1) {
+	} else if (cmd_argc == 1 && cl->state == 1) {
+		// The user is in game
+		printf("User is in game\n");
+
+
+    } else if (strcmp(cmd_argv[0], "get_all") == 0 && cmd_argc == 1 &&
+		cl->state == 2) {
 		/* Send the list of best mismatches related to the specified
 		 * user. If the user has not taked the test yet, return the
 		 * corresponding error value (different than 0 and -1).
 		 */
-		
-		if(current_client->state == 0){
+
+		if(cl->state == 0){
 			return -2;
 		}
-		int *ans_list[sizeof(current_client->answers)];
-		*ans_list = current_client->answers;
+		int *ans_list[sizeof(cl->answers)];
+		*ans_list = cl->answers;
 		int i;
 		QNode *prev, *curr;
 		prev = qtree;
@@ -161,14 +179,14 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 			i++;
 		}
 		user_list = prev->children[ans].fchild;
-		print_mismatches(user_list, current_client->usrname);
+		print_mismatches(user_list, cl->usrname);
 		return 0;
-		
+
 	} else if (strcmp(cmd_argv[0], "post") == 0 && cmd_argc == 3) {
 		/* Send the specified message stored in cmd_argv[2] to the user
 		 * stored in cmd_argv[1].
 		 */
-		int sizebuf = sizeof(cmd_argv[2]); 
+		int sizebuf = sizeof(cmd_argv[2]);
 		//create new string to hold message
 		//new string needs to be larger by one to account for '\r\n'
 		char msg[sizebuf+1];
@@ -222,58 +240,55 @@ int tokenize(char *cmd, char **cmd_argv) {
 }
 /*
 void wrap_up(){
-    //end of main loop - the user typed "q"    
+    //end of main loop - the user typed "q"
     free_list (interests);
     free_qtree(qtree);
-    
+
     exit(0);
 }
 */
 int validate_answer(char *answer){
-    char *invalid_message = "ERROR: Answer must be one of 'y', 'n', 'q'.\n";
-    
 	if (strcmp(answer, "quit") == 0){
 		return -2;
 	}
-	
+
     if (strlen(answer) > 3){
         printf("%s", invalid_message);
         return 2;
     }
-        
+
     if (answer[0] == 'n' || answer[0] == 'N')
         return 0;
-        
+
     if (answer[0] == 'y' || answer[0] == 'Y')
         return 1;
-        
-    printf("%s", invalid_message);
+
     return 2;
 }
 
 // print list of potential mismatches for user
 void print_mismatches(Node *list, char *name){
     int mismatch = 0;
-	
+
 
     // iterate over user list and count the number of mismatchs
     while (list) {
 	// ignore this user
         if (strcmp(list->str, name)) {
             mismatch++;
-             
-	    // if this is the first mismatch found, print successful message    
+
+	    // if this is the first mismatch found, print successful message
             if (mismatch == 1)
                 printf("Here are you best mismatches:\n" );
-            
+
 	    // if mismatch was found, print his/her name
             printf("%s\n", list->str);
         }
-            
+
         list = list->next;
     }
-        
+
     if (mismatch == 0){
         printf("No completing personalities found. Please try again later\n");
-    }    
+    }
 }
