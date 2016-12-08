@@ -206,6 +206,7 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 */
 
 		if(cl->state == 0){
+			write(cl->fd, "Do the test first!\r\n", 20);
 			return -2;
 		}
 		int *ans_list[sizeof(cl->answers)];
