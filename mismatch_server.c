@@ -1,7 +1,7 @@
 /* TCP server for the best-mismatch app */
 #include "app.h"
 
-int clnum = 1;  /* server counts the number of connected clients */
+// int clnum = 1;  /* server counts the number of connected clients */
 char greeting[] = "Welcome.\r\nGo ahead and enter user commands>\r\n";
 char user_prompt[] = "What is your user name?\r\n";
 char name_error[] = "ERROR: User name must be at least 8 and at most "
@@ -12,6 +12,8 @@ char welcomeback[] = "Welcome back.\r\n";
 
 QNode *root = NULL;
 Node *interests = NULL;
+
+int interests_size;
 
 
 int lfd;
@@ -27,6 +29,7 @@ int main(int argc, char **argv) {
 	interests = get_list_from_file (argv[1]);
 	if (interests == NULL)
 		return 1;
+	interests_size = int get_list_size (interests);
 
 	// build question tree
 	root = add_next_level (root,  interests);
@@ -269,7 +272,7 @@ Client *addClient(int fd) {
 	c->inbuf = 0;
 	c->bufleft = BUFSIZE;
 	c->state = 0;
-	c->answers = NULL;
+	c->answers = malloc(sizeof(int) * interests_size);
 
 	return c;
 }
@@ -296,5 +299,6 @@ void removeClient(Client *cl, Client *head, Client *tail) {
 
 	free(cl->buf);
 	free(cl->usrname);
+	free(cl->answers);
 	free(cl);
 }
