@@ -39,29 +39,29 @@ int validate_user(char *name){
 	return valid;
 }
 
-// void process_answer(Client *cl, char *answer, QNode *root, Node *interests) {
-// 	int rc = validate_answer(answer);
-// 	if ( rc== 2) {
-// 		write(cl->fd, ans_error, sizeof ans_error - 1);
-// 	}
+ void process_answer(Client *cl, QNode *root, Node *interests) {
+ 	int rc = validate_answer(answer);
+ 	if ( rc== 2) {
+ 		write(cl->fd, ans_error, sizeof ans_error - 1);
+ 	}
+ 	QNode *prev, *curr;
+    prev = curr = root;
+ 	Node *i = interests;
+	cl->answers[num_interests] = answer;
+	int elements = sizeof(cl->answers)/sizeof(int);
+	while(i<elements){
+		if 
+		prev = curr;
+		curr = find_branch(curr, cl->answers[i]);
+		i++;
+		}
 
-// 	QNode *prev, *curr;
-//     prev = curr = root;
-// 	Node *i = interests;
-// 	int index=0;
-// 	ans_arr = (int*) malloc(sizeof(int));
-//     curr = find_branch(curr, ans);
-// 	ans_arr[index] = ans;
-// 	ans_arr = realloc(ans_arr, ((index+1)*sizeof(int)));
-//     i = i->next;
-// 	index += 1;
+ 	if (rc == 1) { // Yes
+ 		/* code */
+ 	} else { // No
 
-// 	if (rc == 1) { // Yes
-// 		/* code */
-// 	} else { // No
-
-// 	}
-// }
+ 	}
+ }
 
 // int *play_game(Client *cl, char *answer, QNode *root, Node *interests){
 // 	// char answer[MAX_LINE];
@@ -165,13 +165,13 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 			return 0;
 		}
 
-		cl->answers = process_answer(cl, qtree, interests);
-		// if(cl->answers[0]!=-2){
 
-		// cl->state = 1;
-		// }else{
-			// return -1;
-		// }
+		status = process_answer(cl, cl->answer, qtree, interests);
+		if(status == 1){
+			cl->state = 1;
+		}else{
+			return -1;
+		}
 		return 0;
 
 	} else if (cmd_argc == 1 && cl->state == 1) {
