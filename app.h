@@ -19,7 +19,10 @@
 #define BACKLOG 5
 #define INPUT_ARG_MAX_NUM 3
 #define DELIM " \r\n"
-#define PORT 5692
+
+#ifndef PORT
+  #define PORT 55692
+#endif
 
 // Use a linked list to maintain client data
 typedef struct client {
