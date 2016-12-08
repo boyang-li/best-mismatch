@@ -1,11 +1,14 @@
 #include <ctype.h>
 #include "app.h"
 
-int *play_game();
+int *play_game(char* name);
 int validate_answer(char *answer);
 void wrap_up();
 void print_mismatches(Node *list, char *name);
 char *question_prompt = "Do you like %s? (y/n)\n";
+QNode *root = NULL;    
+Node *interests = NULL;
+Node *user_list = NULL;
 /*
  * Utility methods
  */
@@ -34,11 +37,10 @@ int validate_user(char *name){
 	return valid;
 }
 
-int *play_game(){
+int *play_game(char *name){
 	char answer[MAX_LINE];
-	char *ans_arr;
+	int *ans_arr;
 	
-	QNode *current = root;
 	printf("Collecting your interests\n");
 	QNode *prev, *curr;
     prev = curr = root;
@@ -60,19 +62,19 @@ int *play_game(){
 		prev = curr;
         curr = find_branch(curr, ans);
 		ans_arr[index] = ans;
-		ans_arr = realloc(ans_arr, ((index+1)*sizeof(int));
+		ans_arr = realloc(ans_arr, ((index+1)*sizeof(int)));
         i = i->next;
 		index += 1;
     }
 	// add user to the end of the list
 	int *answers[(sizeof(ans_arr) - 1)];
-	answers = ans_arr;
+	*answers = ans_arr;
 	free(ans_arr);
 	
 	user_list = prev->children[ans].fchild;
     prev->children[ans].fchild = add_user(user_list, name);
 	printf("Test complete.");
-	return answers;
+	return *answers;
 }
 
 /* Allocate memory dynamically for string, remember to free it after! */
@@ -113,7 +115,7 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 * need to make sure that the user answers each question only
 		 * once.
 		 */
-		current_client->answers = playgame();
+		current_client->answers = play_game(current_client->usrname);
 		current_client->state = 1;
 		return 0;
 
@@ -126,21 +128,23 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		if(current_client->state == 0){
 			return -2;
 		}
-		char *ans_list[sizeof(current_client->answers)];
-		ans_list = current_client->answers;
+		int *ans_list[sizeof(current_client->answers)];
+		*ans_list = current_client->answers;
 		int i;
-		QNode *current = root;
 		QNode *prev, *curr;
-		prev = curr = root;
+		prev = root;
+		curr = root;
 		int ans;
-		for (i=0,i<(sizeof(ans_list)/sizeof(int)), i++){
-			if(ans_list[i] == 1){
+		int elements = sizeof(ans_list)/sizeof(int);
+		while(i<elements){
+			if(*ans_list[i] == 1){
 				ans = 0;
 			}else{
 				ans = 1;
 			}
 			prev = curr;
 			curr = find_branch(curr, ans);
+			i++;
 		}
 		user_list = prev->children[ans].fchild;
 		print_mismatches(user_list, current_client->usrname);
@@ -160,11 +164,12 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		//TODO remove later
 		printf("%s",msg);
 		//search client linked list for client
-		for(cur=head;cur!=NULL;cur=cur->next){
-			if(strcmp(cur->usrname, cmd_argv[1])==0){
-				write(cur->fd, cmd_argv[2], sizebuf);
+		while(head!=NULL){
+			if(strcmp(head->usrname, cmd_argv[1])==0){
+				write(head->fd, cmd_argv[2], sizebuf);
 				return 0;
 			}
+			head = head->next;
 		}
 		return -1;
 	}
