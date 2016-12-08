@@ -15,6 +15,5 @@ typedef struct str_node {
 Node * get_list_from_file (char *input_file_name);
 void print_list (Node *current);
 void free_list (Node *head);
-int get_list_size (Node *head);
 
 #endif

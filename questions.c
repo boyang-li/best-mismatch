@@ -62,13 +62,6 @@ void print_list (Node *head) {
         printf("%s\n", head->str);
 }
 
-int get_list_size (Node *head){
-    int rs = 0;
-    for (; head; head = head->next)
-        rs++;
-    return rs;
-}
-
 void free_list (Node *head) {
     Node *next;
 

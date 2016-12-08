@@ -59,8 +59,9 @@ int net_newline_location(char *buf, int inbuf);
 int process_args(int, char **, QNode **, Node *, struct client *, struct client *);
 int tokenize(char *, char **);
 Node *existing_user(char* name, QNode *current);
+int get_list_size (Node *head);
 // Server methods
-void bindAndListen(int port);
+void bindAndListen();
 int acceptConn();
 
 #endif

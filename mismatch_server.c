@@ -12,9 +12,10 @@ char welcomeback[] = "Welcome back.\r\n";
 
 QNode *root = NULL;
 Node *interests = NULL;
-
 int interests_size;
 
+Client *cl_head = NULL; /* The head client node */
+Client *cl_tail = NULL; /* The tail client node */
 
 int lfd;
 
@@ -29,7 +30,7 @@ int main(int argc, char **argv) {
 	interests = get_list_from_file (argv[1]);
 	if (interests == NULL)
 		return 1;
-	interests_size = int get_list_size (interests);
+	interests_size = get_list_size (interests);
 
 	// build question tree
 	root = add_next_level (root,  interests);
@@ -37,12 +38,10 @@ int main(int argc, char **argv) {
 	//TODO: remove after testing
 	print_qtree (root, 0);
 
-	Client *cl_head = NULL; /* The head client node */
-	Client *cl_tail = NULL; /* The tail client node */
 	Client *cl = NULL;
 
 	/* Configure server socket, bind and listen, abort on errors */
-	bindAndListen(PORT);
+	bindAndListen();
 
 	// char buf[BUFSIZE]; /* Buffer string to store a whole line of command */
 	int nbytes; /* How many bytes we add to buffer */
@@ -193,7 +192,7 @@ int main(int argc, char **argv) {
 }
 
 /* Configure server socket, bind and listen, abort on errors */
-void bindAndListen(int port) {
+void bindAndListen() {
 	if ((lfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
 		error("socket");
 	}
@@ -217,7 +216,7 @@ void bindAndListen(int port) {
 	saddr.sin_addr.s_addr = INADDR_ANY;
 
 	/* This is the port to listen */
-	saddr.sin_port = htons(port);
+	saddr.sin_port = htons(PORT);
 
 	/* bind: associate this socket with a port */
 	if (bind(lfd, (struct sockaddr *) &saddr, sizeof(saddr)) < 0) {
@@ -229,7 +228,7 @@ void bindAndListen(int port) {
 		error("listen");
 	}
 
-	fprintf(stdout, "listenfd %d Listening on %d...\n", lfd, port);
+	fprintf(stdout, "listenfd %d Listening on %d...\n", lfd, PORT);
 }
 
 int acceptConn() {

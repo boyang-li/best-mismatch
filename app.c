@@ -39,36 +39,36 @@ int validate_user(char *name){
 	return valid;
 }
 
-int process_answer(Client *cl, int answer, QNode *root, Node *interests) {
- 	
-	
- 	QNode *prev, *curr;
-    prev = curr = root;
- 	Node *i = interests;
-	int j;
-	int elements = sizeof(cl->answers)/sizeof(int);
-	int count=0;
-	while(j<elements){
-		if(answers[j] == 1 || answers[j] == 0){
-			count++;
-		}
-		j++;
-	}
-	cl->answers[count] = answer;
-	
-	while(i<elements){
-		if
-		prev = curr;
-		curr = find_branch(curr, cl->answers[i]);
-		i++;
-		}
+// int process_answer(Client *cl, int answer, QNode *root, Node *interests) {
 
- 	if (rc == 1) { // Yes
- 		/* code */
- 	} else { // No
 
- 	}
- }
+//  	QNode *prev, *curr;
+//     prev = curr = root;
+//  	Node *i = interests;
+// 	int j;
+// 	int elements = sizeof(cl->answers)/sizeof(int);
+// 	int count=0;
+// 	while(j<elements){
+// 		if(answers[j] == 1 || answers[j] == 0){
+// 			count++;
+// 		}
+// 		j++;
+// 	}
+// 	cl->answers[count] = answer;
+
+// 	while(i<elements){
+// 		if
+// 		prev = curr;
+// 		curr = find_branch(curr, cl->answers[i]);
+// 		i++;
+// 		}
+
+//  	if (rc == 1) { // Yes
+//  		/* code */
+//  	} else { // No
+
+//  	}
+//  }
 
 // int *play_game(Client *cl, char *answer, QNode *root, Node *interests){
 // 	// char answer[MAX_LINE];
@@ -174,20 +174,18 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 
 		return 0;
 
-	} else if (cmd_argc == 1 && validate_answer(cmd_argv[0]) != 2)) {
+	} else if (cmd_argc == 1 && validate_answer(cmd_argv[0]) != 2) {
 		// check if user is in game
-		if(cl->state == 0 || cl->state == 2){
-			//print invalid
-			return 0;
-		}else{
-			int status = process_answer(cl, validate_answer(cmd_argv[0]), qtree, interests);
-			if (status == 2){
-				cl->state = 2;
-			} 
-		}
+		// if(cl->state == 0 || cl->state == 2){
+		// 	//print invalid
+		// 	return 0;
+		// }else{
+		// 	int status = process_answer(cl, validate_answer(cmd_argv[0]), qtree, interests);
+		// 	if (status == 2){
+		// 		cl->state = 2;
+		// 	}
+		// }
 		return 0;
-	}
-
 
     } else if (strcmp(cmd_argv[0], "get_all") == 0 && cmd_argc == 1 &&
 		cl->state == 2) {
@@ -226,6 +224,7 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 * stored in cmd_argv[1].
 		 */
 		int sizebuf = sizeof(cmd_argv[2]);
+
 		//create new string to hold message
 		//new string needs to be larger by one to account for '\r\n'
 		char msg[sizebuf+1];
@@ -233,16 +232,24 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		msg[sizebuf]='\r';
 		msg[sizeof(msg)]='\n';
 		//TODO remove later
-		printf("%s",msg);
+		printf("Client fd: %d posting '%s' to client name: %s", cl->fd, msg, cmd_argv[1]);
 		//search client linked list for client
-		while(head!=NULL){
-			if(strcmp(head->usrname, cmd_argv[1])==0){
-				write(head->fd, cmd_argv[2], sizebuf);
-				return 0;
+
+		Client *target;
+		for (target = head; target; target = target->next) {
+			// printf("Adding fd: %d to fdlist...\n", cl->fd);
+			/* Update the maxfd to be the highest-numbered fd */
+			if (strcmp(target->usrname, cmd_argv[1])==0) {
+				break;
 			}
-			head = head->next;
 		}
-		return -1;
+
+		if (target){
+			write(target->fd, msg, sizeof(msg)-1);
+		} else {
+			char *user_notfound = "Sorry! user not found!\r\n";
+			write(target->fd, user_notfound, sizeof(user_notfound)-1);
+		}
 	}
 	else {
 		/* The input message is not properly formatted. */
@@ -373,12 +380,19 @@ Node *existing_user(char* name, QNode *current){
     return NULL;
 }
 
-int active_user(char *name, struct client *cl, struct client *head){
-	client *cur;
-	for(cur=head, cur->next, cur=cur->next){
-		if (strcmp(cur->usrname, name) == 0){
-			return 0;
-		}
-	}
-	return 1;
+int get_list_size (Node *head){
+    int rs = 0;
+    for (; head; head = head->next)
+        rs++;
+    return rs;
 }
+
+// int active_user(char *name, struct client *cl, struct client *head){
+// 	Client *cur;
+// 	for(cur=head, cur->next, cur=cur->next){
+// 		if (strcmp(cur->usrname, name) == 0){
+// 			return 0;
+// 		}
+// 	}
+// 	return 1;
+// }
