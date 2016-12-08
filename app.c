@@ -39,16 +39,23 @@ int validate_user(char *name){
 	return valid;
 }
 
- void process_answer(Client *cl, QNode *root, Node *interests) {
- 	int rc = validate_answer(answer);
- 	if ( rc== 2) {
- 		write(cl->fd, ans_error, sizeof ans_error - 1);
- 	}
+int process_answer(Client *cl, int answer, QNode *root, Node *interests) {
+ 	
+	
  	QNode *prev, *curr;
     prev = curr = root;
  	Node *i = interests;
-	cl->answers[num_interests] = answer;
+	int j;
 	int elements = sizeof(cl->answers)/sizeof(int);
+	int count=0;
+	while(j<elements){
+		if(answers[j] == 1 || answers[j] == 0){
+			count++;
+		}
+		j++;
+	}
+	cl->answers[count] = answer;
+	
 	while(i<elements){
 		if
 		prev = curr;
@@ -167,9 +174,19 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 
 		return 0;
 
-	} else if (cmd_argc == 1 && cl->state == 1) {
-		// The user is in game
-		printf("User is in game\n");
+	} else if (cmd_argc == 1 && validate_answer(cmd_argv[0]) != 2)) {
+		// check if user is in game
+		if(cl->state == 0 || cl->state == 2){
+			//print invalid
+			return 0;
+		}else{
+			int status = process_answer(cl, validate_answer(cmd_argv[0]), qtree, interests);
+			if (status == 2){
+				cl->state = 2;
+			} 
+		}
+		return 0;
+	}
 
 
     } else if (strcmp(cmd_argv[0], "get_all") == 0 && cmd_argc == 1 &&
