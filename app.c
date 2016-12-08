@@ -29,6 +29,22 @@ int validate_user(char *name){
 	return valid;
 }
 
+char *play_game(){
+	QNode *root = NULL;
+	char answer[MAX_LINE];
+	char name[MAX_LINE];
+
+	Node * interests = NULL;
+	
+	QNode *current = root;
+	short in_game = 0;
+	printf("Collecting your interests\n");
+	printf(printf("%s (y/n)\n", current->question);
+	
+	}
+	
+}
+
 /* Allocate memory dynamically for string, remember to free it after! */
 char *alloc_str(int size) {
 	char *s = malloc(sizeof(char) * size);
@@ -60,24 +76,47 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 	} else if (strcmp(cmd_argv[0], "quit") == 0 && cmd_argc == 1) {
 		/* Return an appropriate value to denote that the specified
 		 * user is now need to be disconnected. */
-		return -1;
+		return -1; //done in main loop fdset is not passed into here
 
 	} else if (strcmp(cmd_argv[0], "do_test") == 0 && cmd_argc == 1) {
 		/* The specified user is ready to start answering questions. You
 		 * need to make sure that the user answers each question only
 		 * once.
 		 */
+		
+		current_client->state = 1;
+		return 0;
 
 	} else if (strcmp(cmd_argv[0], "get_all") == 0 && cmd_argc == 1) {
 		/* Send the list of best mismatches related to the specified
 		 * user. If the user has not taked the test yet, return the
 		 * corresponding error value (different than 0 and -1).
 		 */
-
+		if(current_client->state == 0){
+			return -2;
+		}
+		
 	} else if (strcmp(cmd_argv[0], "post") == 0 && cmd_argc == 3) {
 		/* Send the specified message stored in cmd_argv[2] to the user
 		 * stored in cmd_argv[1].
 		 */
+		int sizebuf = sizeof(cmd_argv[2]); 
+		//create new string to hold message
+		//new string needs to be larger by one to account for '\r\n'
+		char msg[sizebuf+1];
+		strcpy(msg,cmd_argv[2]);
+		msg[sizebuf]='\r';
+		msg[sizeof(msg)]='\n';
+		//TODO remove later
+		printf("%s",msg);
+		//search client linked list for client
+		for(cur=head;cur!=NULL;cur=cur->next){
+			if(strcmp(cur->usrname, cmd_argv[1])==0){
+				write(cur->fd, cmd_argv[2], sizebuf);
+				return 0;
+			}
+		}
+		return -1;
 	}
 	else {
 		/* The input message is not properly formatted. */
@@ -111,4 +150,65 @@ int tokenize(char *cmd, char **cmd_argv) {
     }
 
     return cmd_argc;
+}
+
+void wrap_up(){
+    //end of main loop - the user typed "q"
+    print_qtree (root, 0);
+    
+    free_list (interests);
+    free_qtree(root);
+    
+    exit(0);
+}
+
+int validate_answer(char *answer){
+    char *invalid_message = "ERROR: Answer must be one of 'y', 'n', 'q'.\n";
+    
+    if (strlen(answer) > 3){
+        printf("%s", invalid_message);
+        return 2;
+    }
+    
+    if (answer[0] == 'q' || answer[0] == 'Q')
+        wrap_up();
+        
+    if (answer[0] == 'n' || answer[0] == 'N')
+        return 0;
+        
+    if (answer[0] == 'y' || answer[0] == 'Y')
+        return 1;
+        
+    printf("%s", invalid_message);
+    return 2;
+}
+
+void print_friends(Node *list, char *name){
+    int friends = 0;
+
+    // iterate over user list and count the number of friends
+    while (list) {
+	// ignore this user
+        if (strcmp(list->str, name)) {
+            friends++;
+             
+	    // if this is the first friend found, print successful message    
+            if (friends == 1)
+                printf(pos_result1, name);
+            
+	    // if friend was found, print his/her name
+            printf("%s, ", list->str);
+        }
+            
+        list = list->next;
+    }
+    
+    // if friends were found, print the number of friends    
+    if (friends){
+        printf("\n");
+        printf(pos_result2, friends);
+        
+    } else {
+        printf("%s", neg_result);    
+    }
 }

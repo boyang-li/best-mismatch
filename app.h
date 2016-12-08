@@ -40,6 +40,8 @@ typedef struct client {
 // Utility methods
 void error(char *msg);
 int validate_user(char *name);
+char *play_game();
+int validate_answer(char *ans);
 char *alloc_str(int size);
 Client *addClient(int fd, char *buf);
 void removeClient(Client *cl);
