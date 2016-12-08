@@ -1,13 +1,13 @@
 #include <ctype.h>
 #include "app.h"
 
-int *play_game(char* name, QNode *root);
+int *play_game(char* name, QNode *root, Node *interests);
 int validate_answer(char *answer);
 void wrap_up();
 void print_mismatches(Node *list, char *name);
 char *question_prompt = "Do you like %s? (y/n)\n";
 //QNode *root = NULL;    
-Node *interests = NULL;
+//Node *interests = NULL;
 Node *user_list = NULL;
 /*
  * Utility methods
@@ -37,7 +37,7 @@ int validate_user(char *name){
 	return valid;
 }
 
-int *play_game(char *name, QNode *root){
+int *play_game(char *name, QNode *root, Node *interests){
 	char answer[MAX_LINE];
 	int *ans_arr;
 	
@@ -124,7 +124,7 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 * need to make sure that the user answers each question only
 		 * once.
 		 */
-		current_client->answers = play_game(current_client->usrname, qtree);
+		current_client->answers = play_game(current_client->usrname, qtree, interests);
 		if(current_client->answers[0]!=-2){
 			
 		current_client->state = 1;
