@@ -1,6 +1,10 @@
 #include <ctype.h>
 #include "app.h"
 
+int validate_answer(char *answer);
+void wrap_up();
+void print_friends(Node *list, char *name);
+char *question_prompt = "Do you like %s? (y/n)\n";
 /*
  * Utility methods
  */
@@ -30,19 +34,44 @@ int validate_user(char *name){
 }
 
 char *play_game(){
-	QNode *root = NULL;
 	char answer[MAX_LINE];
-	char name[MAX_LINE];
-
-	Node * interests = NULL;
+	char *ans_arr;
 	
 	QNode *current = root;
 	short in_game = 0;
 	printf("Collecting your interests\n");
-	printf(printf("%s (y/n)\n", current->question);
-	
-	}
-	
+	QNode *prev, *curr;
+    prev = curr = root;
+	Node *i = interests;
+	int ans;
+	int index=0;
+	ans_arr = (char*) malloc(sizeof(char));
+	while (i){
+		printf(question_prompt, i->str);
+                
+		// read answer to prompt
+        scanf("%s", answer);
+        ans = validate_answer(answer);
+                
+        // if answer if not valid, continue to loop
+        if (ans == 2)
+			continue;
+                    
+        prev = curr;
+        curr = find_branch(curr, ans);
+		ans_arr[index] = ans;
+		ans_arr = realloc(ans_arr, ((index+1)*sizeof(char));
+        i = i->next;
+		index += 1;
+    }
+	// add user to the end of the list
+	char *answers[(sizeof(ans_arr) - 1)];
+	memccpy(answers, ans_arr, sizeof(answers));
+	free(ans_arr);
+	user_list = prev->children[ans].fchild;
+    prev->children[ans].fchild = add_user(user_list, name);
+	printf("Test complete.");
+	return answers;
 }
 
 /* Allocate memory dynamically for string, remember to free it after! */
@@ -83,7 +112,7 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 * need to make sure that the user answers each question only
 		 * once.
 		 */
-		
+		current_client->answers = playgame();
 		current_client->state = 1;
 		return 0;
 
@@ -95,6 +124,7 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		if(current_client->state == 0){
 			return -2;
 		}
+		return 0;
 		
 	} else if (strcmp(cmd_argv[0], "post") == 0 && cmd_argc == 3) {
 		/* Send the specified message stored in cmd_argv[2] to the user
@@ -153,9 +183,7 @@ int tokenize(char *cmd, char **cmd_argv) {
 }
 
 void wrap_up(){
-    //end of main loop - the user typed "q"
-    print_qtree (root, 0);
-    
+    //end of main loop - the user typed "q"    
     free_list (interests);
     free_qtree(root);
     
@@ -174,10 +202,10 @@ int validate_answer(char *answer){
         wrap_up();
         
     if (answer[0] == 'n' || answer[0] == 'N')
-        return 0;
+        return 1;
         
     if (answer[0] == 'y' || answer[0] == 'Y')
-        return 1;
+        return 0;
         
     printf("%s", invalid_message);
     return 2;
