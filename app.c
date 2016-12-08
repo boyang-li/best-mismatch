@@ -362,3 +362,13 @@ Node *existing_user(char* name, QNode *current){
 
     return NULL;
 }
+
+int active_user(char *name, struct client *cl, struct client *head){
+	client *cur;
+	for(cur=head, cur->next, cur=cur->next){
+		if (strcmp(cur->usrname, name) == 0){
+			return 0;
+		}
+	}
+	return 1;
+}
