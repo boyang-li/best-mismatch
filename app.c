@@ -100,7 +100,7 @@ int net_newline_location(char *buf, int inbuf) {
  */
 int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 struct client *current_client, struct client *head) {
-	// QNode *qtree = *root;
+	QNode *qtree = *root;
 
 	if (cmd_argc <= 0) {
 		return 0;
@@ -132,8 +132,8 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		*ans_list = current_client->answers;
 		int i;
 		QNode *prev, *curr;
-		prev = root;
-		curr = root;
+		prev = qtree;
+		curr = qtree;
 		int ans;
 		int elements = sizeof(ans_list)/sizeof(int);
 		while(i<elements){
