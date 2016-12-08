@@ -130,12 +130,19 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 * user is now need to be disconnected. */
 		return -1; //done in main loop fdset is not passed into here
 
-	} else if (strcmp(cmd_argv[0], "do_test") == 0 && cmd_argc == 1 &&
-		cl->state == 0) {
+	} else if (strcmp(cmd_argv[0], "do_test") == 0 && cmd_argc == 1) {
 		/* The specified user is ready to start answering questions. You
 		 * need to make sure that the user answers each question only
 		 * once.
 		 */
+		if(cl->state == 2){
+			write(cl->fd,"You've already taken the test!\n", 32);
+			return 0;
+		}
+		else if(cl->state == 1){
+			write(cl->fd,"You are already writing the test!\n", 35);
+			return 0;
+		} 
 		cl->answers = play_game(cl->usrname, qtree, interests);
 		if(cl->answers[0]!=-2){
 
