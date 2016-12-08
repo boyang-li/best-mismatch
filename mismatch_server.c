@@ -8,6 +8,7 @@ char name_error[] = "ERROR: User name must be at least 8 and at most "
 			"128 characters, and can only contain alphanumeric "
 			"characters.\r\n";
 char ans_error[] = "ERROR: Answer must be one of 'y', 'n'.\r\n";
+char welcomeback[] = "Welcome back.\r\n";
 
 QNode *root = NULL;
 Node *interests = NULL;
@@ -68,7 +69,7 @@ int main(int argc, char **argv) {
 		if (select(maxfd + 1, &fdlist, NULL, NULL, NULL) < 0) {
 			error("select");
 		} else {
-			if (FD_ISSET(lfd, &fdlist)) {
+			if (FD_ISSET(lfd, &fdlist)) { // is listener
 				int newfd = acceptConn();
 				// FD_SET(newfd, &fdlist);
 				cl = addClient(newfd);
@@ -84,79 +85,92 @@ int main(int argc, char **argv) {
 
 				// Ask the client for his username
 				write(newfd, user_prompt, sizeof user_prompt - 1);
-			}
+			} else { // handle data from client
+				for (cl = cl_head; cl; cl = cl->next) {
+					if (cl && FD_ISSET(cl->fd, &fdlist)) {
+						/* Partial-read
+						 * Read the buffer until end-of-line, and get the whole line
+						 * for processing.
+						 */
+						if ((nbytes = read(cl->fd, cl->after, cl->bufleft)) > 0) {
+							//amount of bytes read into buffer
+							cl->inbuf += nbytes;
 
-			for (cl = cl_head; cl; cl = cl->next) {
-				if (cl && FD_ISSET(cl->fd, &fdlist)) {
-					/* Partial-read
-					 * Read the buffer until end-of-line, and get the whole line
-					 * for processing.
-					 */
-					if ((nbytes = read(cl->fd, cl->after, cl->bufleft)) > 0) {
-						//amount of bytes read into buffer
-						cl->inbuf += nbytes;
+							// call find_network_newline, store result in 'where'
+							where = net_newline_location(cl->buf, cl->inbuf);
 
-						// call find_network_newline, store result in 'where'
-						where = net_newline_location(cl->buf, cl->inbuf);
+							if (where >= 0) { // OK. we have a full line
+								//replace \r with \0
+								cl->buf[where] = '\0';
+								cl->buf[where+1] = '\0';
 
-						if (where >= 0) { // OK. we have a full line
-							//replace \r with \0
-							cl->buf[where] = '\0';
-							cl->buf[where+1] = '\0';
+								//TODO: remove it after testing
+								printf("Line extracted: %s\n", cl->buf);
 
-							//TODO: remove it after testing
-							printf("Line extracted: %s\n", cl->buf);
+								// Process args-------------------------
+								int cmd_argc, rc;
+								char *cmd_argv[INPUT_ARG_MAX_NUM];
+								cmd_argc = tokenize(cl->buf, cmd_argv);
 
-							// Process args-------------------------
-							int cmd_argc;
-							char *cmd_argv[INPUT_ARG_MAX_NUM];
-							cmd_argc = tokenize(cl->buf, cmd_argv);
+								rc = process_args(cmd_argc, cmd_argv, &root,
+									interests, cl, cl_head);
 
-							int rc = process_args(cmd_argc, cmd_argv, &root,
-								interests, cl, cl_head);
+								if (rc == -1) { // quit
+									//close connection for client
+									close(cl->fd);
+									removeClient(cl, cl_head);
+								} else if (rc == 1) { // no client name
+									if (validate_user(cl->buf) == 1) {
+										strncpy(cl->usrname, cl->buf, strlen(cl->buf)+1);
 
-							if (rc < 0) {
-								//close connection for client
-								close(cl->fd);
+										if (existing_user(cl->buf, root) == NULL) {
+											write(cl->fd, greeting, sizeof greeting - 1);
+										} else {
+											write(cl->fd, welcomeback, sizeof welcomeback - 1);
+											cl->state = 2;
+										}
+									} else {
+										// Ask the client for his username
+										write(cl->fd, name_error, sizeof name_error - 1);
+										write(cl->fd, user_prompt, sizeof user_prompt - 1);
+									}
+								}
+								//---------------------------------------
 
+								// Skip the '\0\0' terminators, 'where' is the number
+								// of bytes in the full line
+								where += 2;
 
+								// Remove the full line from the buffer, in memory
+								memmove(cl->buf, cl->buf + where, cl->inbuf);
+
+								// Remove bytes from inbuf as removing the full line
+								cl->inbuf -= where;
+
+								// Buffer gains room as removing the full line
+								cl->bufleft += where;
 							}
-							//---------------------------------------
 
-							// Skip the '\0\0' terminators, 'where' is the number
-							// of bytes in the full line
-							where += 2;
+							// Buffer loses room after read
+							cl->bufleft -= nbytes;
 
-							// Remove the full line from the buffer, in memory
-							memmove(cl->buf, cl->buf + where, cl->inbuf);
+							if (cl->bufleft > 0){
+								// update after, in preparation for the next read
+				        		cl->after = &((cl->buf)[cl->inbuf]);
+							} else {
+								// Buffer is full, there is no next read.
+								fprintf(stderr, "Buffer overflow!\n");
 
-							// Remove bytes from inbuf as removing the full line
-							cl->inbuf -= where;
-
-							// Buffer gains room as removing the full line
-							cl->bufleft += where;
+								//TODO: deal with buffer overflow properly, client is
+								// prompted with error message, and program continues
+								break;
+							}
 						}
 
-						// Buffer loses room after read
-						cl->bufleft -= nbytes;
 
-						if (cl->bufleft > 0){
-							// update after, in preparation for the next read
-			        		cl->after = &((cl->buf)[cl->inbuf]);
-						} else {
-							// Buffer is full, there is no next read.
-							fprintf(stderr, "Buffer overflow!\n");
-
-							//TODO: deal with buffer overflow properly, client is
-							// prompted with error message, and program continues
-							break;
-						}
 					}
-
-
 				}
 			}
-
 				// close fd so that the other side knows
 				// close(cfd);
 
@@ -260,10 +274,10 @@ Client *addClient(int fd) {
 	return c;
 }
 
-void removeClient(Client *cl) {
+void removeClient(Client *cl, Client *head) {
 	Client *cur;
 	// Traverse the the array untill we find our client
-	for (cur = cl_head; cur->next; cur = cur->next) {
+	for (cur = head; cur->next; cur = cur->next) {
 		if (cur->next == cl) {
 			fprintf(stdout, "Removing client fd %d...\n", cl->fd);
 			fflush(stdout);

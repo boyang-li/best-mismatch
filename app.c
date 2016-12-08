@@ -6,6 +6,8 @@ int validate_answer(char *answer);
 void wrap_up();
 void print_mismatches(Node *list, char *name);
 char *question_prompt = "Do you like %s? (y/n)\n";
+char test_msg[] = "Collecting your interests\r\n";
+
 //QNode *root = NULL;
 //Node *interests = NULL;
 Node *user_list = NULL;
@@ -37,28 +39,41 @@ int validate_user(char *name){
 	return valid;
 }
 
-void process_answer(Client *cl, char *answer, QNode *root, Node *interests) {
-	int rc = validate_answer(answer);
-	if ( rc== 2) {
-		write(cl->fd, ans_error, sizeof ans_error - 1);
-	} else if (rc == 1) { // Yes
-		/* code */
-	} else { // No
+// void process_answer(Client *cl, char *answer, QNode *root, Node *interests) {
+// 	int rc = validate_answer(answer);
+// 	if ( rc== 2) {
+// 		write(cl->fd, ans_error, sizeof ans_error - 1);
+// 	}
 
-	}
-}
+// 	QNode *prev, *curr;
+//     prev = curr = root;
+// 	Node *i = interests;
+// 	int index=0;
+// 	ans_arr = (int*) malloc(sizeof(int));
+//     curr = find_branch(curr, ans);
+// 	ans_arr[index] = ans;
+// 	ans_arr = realloc(ans_arr, ((index+1)*sizeof(int)));
+//     i = i->next;
+// 	index += 1;
+
+// 	if (rc == 1) { // Yes
+// 		/* code */
+// 	} else { // No
+
+// 	}
+// }
 
 // int *play_game(Client *cl, char *answer, QNode *root, Node *interests){
 // 	// char answer[MAX_LINE];
 // 	// int *ans_arr;
 
-// 	printf("Collecting your interests\n");
+
 // 	QNode *prev, *curr;
 //     prev = curr = root;
 // 	Node *i = interests;
 // 	int ans;
 // 	int index=0;
-// 	// ans_arr = (int*) malloc(sizeof(int));
+// 	ans_arr = (int*) malloc(sizeof(int));
 // 	while (i){
 // 		printf(question_prompt, i->str);
 
@@ -121,6 +136,8 @@ int net_newline_location(char *buf, int inbuf) {
 int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 struct client *cl, struct client *head) {
 	QNode *qtree = *root;
+	// 0 - continue; -1 - quit; 1 - no username
+
 
 	if (cmd_argc <= 0) {
 		return 0;
@@ -130,26 +147,31 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 * user is now need to be disconnected. */
 		return -1; //done in main loop fdset is not passed into here
 
-	} else if (strcmp(cmd_argv[0], "do_test") == 0 && cmd_argc == 1) {
+	} else if (cl->usrname == NULL && cmd_argc == 1) {
+		return 1;
+	}	else if (strcmp(cmd_argv[0], "do_test") == 0 && cmd_argc == 1) {
 		/* The specified user is ready to start answering questions. You
 		 * need to make sure that the user answers each question only
 		 * once.
 		 */
+		write(cl->fd, test_msg, sizeof test_msg - 1);
+
 		if(cl->state == 2){
-			write(cl->fd,"You've already taken the test!\n", 32);
+			write(cl->fd,"You've already taken the test!\r\n", 33);
 			return 0;
 		}
 		else if(cl->state == 1){
-			write(cl->fd,"You are already writing the test!\n", 35);
+			write(cl->fd,"You are already writing the test!\r\n", 35);
 			return 0;
-		} 
-		cl->answers = play_game(cl->usrname, qtree, interests);
-		if(cl->answers[0]!=-2){
-
-		cl->state = 1;
-		}else{
-			return -1;
 		}
+
+		// cl->answers = process_answer(cl, cl->answer, qtree, interests);
+		// if(cl->answers[0]!=-2){
+
+		// cl->state = 1;
+		// }else{
+			// return -1;
+		// }
 		return 0;
 
 	} else if (cmd_argc == 1 && cl->state == 1) {
@@ -169,7 +191,7 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		}
 		int *ans_list[sizeof(cl->answers)];
 		*ans_list = cl->answers;
-		int i;
+		int i=0;
 		QNode *prev, *curr;
 		prev = qtree;
 		curr = qtree;
@@ -260,7 +282,8 @@ int validate_answer(char *answer){
 	}
 
     if (strlen(answer) > 3){
-        printf("%s", invalid_message);
+    	//TODO
+        printf("%s", "invalid answer");
         return 2;
     }
 
@@ -298,4 +321,44 @@ void print_mismatches(Node *list, char *name){
     if (mismatch == 0){
         printf("No completing personalities found. Please try again later\n");
     }
+}
+
+Node *existing_user(char* name, QNode *current){
+        //very slightly modified find_user from A2 solution code
+        //returns Null if user is not found, the node if found.
+    if (current->node_type == REGULAR){
+
+        Node *head;
+        // look for the node (recursively) in the 0 subtree
+        head = find_user(current->children[0].qchild, name);
+        if (head)
+            return head;
+
+        // look for the node (recursively) in the 1 subtree
+        head = find_user(current->children[1].qchild, name);
+        if (head)
+            return head;
+
+    // current is a leaf node
+    } else {
+        // look for the user in the 0 child
+        Node *head = current->children[0].fchild;
+
+        while (head != NULL) {
+            if (strcmp(head->str, name) == 0)
+                return current->children[0].fchild;
+            head = head->next;
+        }
+
+        // look for the user in the 1 child
+        head = current->children[1].fchild;
+
+        while (head != NULL) {
+            if (strcmp(head->str, name) == 0)
+                return current->children[1].fchild;
+            head = head->next;
+        }
+    }
+
+    return NULL;
 }

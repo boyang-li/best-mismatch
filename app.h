@@ -51,10 +51,11 @@ void error(char *msg);
 int validate_user(char *name);
 char *alloc_str(int size);
 Client *addClient(int fd);
-void removeClient(Client *cl);
+void removeClient(Client *cl, Client *head);
 int net_newline_location(char *buf, int inbuf);
 int process_args(int, char **, QNode **, Node *, struct client *, struct client *);
 int tokenize(char *, char **);
+Node *existing_user(char* name, QNode *current);
 // Server methods
 void bindAndListen(int port);
 int acceptConn();
