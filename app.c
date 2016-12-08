@@ -80,7 +80,7 @@ int *play_game(char *name, QNode *root){
 		printf("Test complete.");
 	}else{
 		*answers[0] = -2;
-		printf("Test prematurely exitted. Answers not saved")
+		printf("Test prematurely exitted. Answers not saved");
 	}
 	free(ans_arr);
 	return *answers;
