@@ -50,7 +50,7 @@ int validate_user(char *name){
 	cl->answers[num_interests] = answer;
 	int elements = sizeof(cl->answers)/sizeof(int);
 	while(i<elements){
-		if 
+		if
 		prev = curr;
 		curr = find_branch(curr, cl->answers[i]);
 		i++;
@@ -154,24 +154,17 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 * need to make sure that the user answers each question only
 		 * once.
 		 */
-		write(cl->fd, test_msg, sizeof test_msg - 1);
-
 		if(cl->state == 2){
 			write(cl->fd,"You've already taken the test!\r\n", 33);
-			return 0;
-		}
-		else if(cl->state == 1){
+		} else if(cl->state == 1){
 			write(cl->fd,"You are already writing the test!\r\n", 35);
-			return 0;
-		}
+		} else {
+			write(cl->fd, test_msg, sizeof test_msg - 1);
+			//print first question...
 
-
-		status = process_answer(cl, cl->answer, qtree, interests);
-		if(status == 1){
 			cl->state = 1;
-		}else{
-			return -1;
 		}
+
 		return 0;
 
 	} else if (cmd_argc == 1 && cl->state == 1) {
