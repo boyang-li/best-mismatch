@@ -66,6 +66,8 @@ int process_answer(Client *cl, int answer, QNode *root, Node *interests) {
 		k++;
 		i=i->next;
 	}
+	//move to next node one more time
+	i=i->next;
 	if(curr->node_type == LEAF){ //if node is leaf test is done
 		user_list = prev->children[answer].fchild;
 		prev->children[answer].fchild = add_user(user_list, cl->usrname);
