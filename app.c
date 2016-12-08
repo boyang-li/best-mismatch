@@ -1,12 +1,12 @@
 #include <ctype.h>
 #include "app.h"
 
-int *play_game(char* name);
+int *play_game(char* name, QNode *root);
 int validate_answer(char *answer);
 void wrap_up();
 void print_mismatches(Node *list, char *name);
 char *question_prompt = "Do you like %s? (y/n)\n";
-QNode *root = NULL;    
+//QNode *root = NULL;    
 Node *interests = NULL;
 Node *user_list = NULL;
 /*
@@ -37,7 +37,7 @@ int validate_user(char *name){
 	return valid;
 }
 
-int *play_game(char *name){
+int *play_game(char *name, QNode *root){
 	char answer[MAX_LINE];
 	int *ans_arr;
 	
@@ -58,6 +58,9 @@ int *play_game(char *name){
         // if answer if not valid, continue to loop
         if (ans == 2)
 			continue;
+		if (ans == -2){
+			break;
+		}
                     
 		prev = curr;
         curr = find_branch(curr, ans);
@@ -67,13 +70,19 @@ int *play_game(char *name){
 		index += 1;
     }
 	// add user to the end of the list
-	int *answers[(sizeof(ans_arr) - 1)];
-	*answers = ans_arr;
-	free(ans_arr);
 	
-	user_list = prev->children[ans].fchild;
-    prev->children[ans].fchild = add_user(user_list, name);
-	printf("Test complete.");
+	int *answers[(sizeof(ans_arr) - 1)];
+	if (ans!=-2){
+		*answers = ans_arr;
+	
+		user_list = prev->children[ans].fchild;
+		prev->children[ans].fchild = add_user(user_list, name);
+		printf("Test complete.");
+	}else{
+		*answers[0] = -2;
+		printf("Test prematurely exitted. Answers not saved")
+	}
+	free(ans_arr);
 	return *answers;
 }
 
@@ -115,8 +124,13 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 * need to make sure that the user answers each question only
 		 * once.
 		 */
-		current_client->answers = play_game(current_client->usrname);
+		current_client->answers = play_game(current_client->usrname, qtree);
+		if(current_client->answers[0]!=-2){
+			
 		current_client->state = 1;
+		}else{
+			return -1;
+		}
 		return 0;
 
 	} else if (strcmp(cmd_argv[0], "get_all") == 0 && cmd_argc == 1) {
@@ -206,25 +220,26 @@ int tokenize(char *cmd, char **cmd_argv) {
 
     return cmd_argc;
 }
-
+/*
 void wrap_up(){
     //end of main loop - the user typed "q"    
     free_list (interests);
-    free_qtree(root);
+    free_qtree(qtree);
     
     exit(0);
 }
-
+*/
 int validate_answer(char *answer){
     char *invalid_message = "ERROR: Answer must be one of 'y', 'n', 'q'.\n";
     
+	if (strcmp(answer, "quit") == 0){
+		return -2;
+	}
+	
     if (strlen(answer) > 3){
         printf("%s", invalid_message);
         return 2;
     }
-    
-    if (answer[0] == 'q' || answer[0] == 'Q')
-        wrap_up();
         
     if (answer[0] == 'n' || answer[0] == 'N')
         return 0;
