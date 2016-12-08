@@ -5,7 +5,7 @@
 int validate_answer(char *answer);
 void wrap_up();
 void print_mismatches(Node *list, char *name);
-char *question_prompt = "Do you like %s? (y/n)\n";
+char *question_prompt = "Do you like %s? (y/n) ";
 char test_msg[] = "Collecting your interests\r\n";
 
 //QNode *root = NULL;
@@ -39,36 +39,41 @@ int validate_user(char *name){
 	return valid;
 }
 
-// int process_answer(Client *cl, int answer, QNode *root, Node *interests) {
-
-
-//  	QNode *prev, *curr;
-//     prev = curr = root;
-//  	Node *i = interests;
-// 	int j;
-// 	int elements = sizeof(cl->answers)/sizeof(int);
-// 	int count=0;
-// 	while(j<elements){
-// 		if(answers[j] == 1 || answers[j] == 0){
-// 			count++;
-// 		}
-// 		j++;
-// 	}
-// 	cl->answers[count] = answer;
-
-// 	while(i<elements){
-// 		if
-// 		prev = curr;
-// 		curr = find_branch(curr, cl->answers[i]);
-// 		i++;
-// 		}
-
-//  	if (rc == 1) { // Yes
-//  		/* code */
-//  	} else { // No
-
-//  	}
-//  }
+int process_answer(Client *cl, int answer, QNode *root, Node *interests) {
+ 	
+	
+ 	QNode *prev, *curr;
+    prev = curr = root;
+ 	Node *i = interests;
+	int j;
+	int elements = sizeof(cl->answers)/sizeof(int);
+	int count=0;
+	while(j<elements){
+		if(cl->answers[j] == 1 || cl->answers[j] == 0){
+			count++;
+		}
+		j++;
+	}
+	cl->answers[count] = answer;
+	elements += 1;
+	int k;
+	while(k<elements){
+		prev = curr;
+		curr = find_branch(curr, cl->answers[k]);
+		k++;
+		i=i->next;
+	}
+	if(curr->node_type == LEAF){
+		user_list = prev->children[answer].fchild;
+		prev->children[answer].fchild = add_user(user_list, cl->usrname);
+		return 2;
+	}else{
+		write(cl->fd, question_prompt, sizeof(question_prompt));
+		write(cl->fd, i->str, sizeof(i->str) - 1);
+		write(cl->fd, "\r\n", 2);
+		return 0;
+	}
+}
 
 // int *play_game(Client *cl, char *answer, QNode *root, Node *interests){
 // 	// char answer[MAX_LINE];
@@ -167,7 +172,9 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 			write(cl->fd,"You are already writing the test!\r\n", 35);
 		} else {
 			write(cl->fd, test_msg, sizeof test_msg - 1);
-			//print first question...
+			write(cl->fd, question_prompt, sizeof(question_prompt));
+			write(cl->fd, interests->str, sizeof(interests->str) - 1);
+			write(cl->fd, "\r\n", 2);
 
 			cl->state = 1;
 		}
@@ -175,16 +182,16 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		return 0;
 
 	} else if (cmd_argc == 1 && validate_answer(cmd_argv[0]) != 2) {
-		// check if user is in game
-		// if(cl->state == 0 || cl->state == 2){
-		// 	//print invalid
-		// 	return 0;
-		// }else{
-		// 	int status = process_answer(cl, validate_answer(cmd_argv[0]), qtree, interests);
-		// 	if (status == 2){
-		// 		cl->state = 2;
-		// 	}
-		// }
+		//check if user is in game
+		if(cl->state == 0 || cl->state == 2){
+		 	//print invalid
+		 	return 0;
+		}else{
+		 	int status = process_answer(cl, validate_answer(cmd_argv[0]), qtree, interests);
+		 	if (status == 2){
+		 		cl->state = 2;
+		 	}
+		}
 		return 0;
 
     } else if (strcmp(cmd_argv[0], "get_all") == 0 && cmd_argc == 1 &&
