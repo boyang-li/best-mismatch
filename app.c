@@ -57,7 +57,6 @@ int process_answer(Client *cl, int answer, QNode *root, Node *interests) {
 	}
 	//add new answer to end of answer
 	cl->answers[count] = answer;
-	elements += 1;
 	int k;
 	//traverse to where we left off
 	while(k<count){
