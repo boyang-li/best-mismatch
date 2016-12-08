@@ -48,26 +48,29 @@ int process_answer(Client *cl, int answer, QNode *root, Node *interests) {
 	int j;
 	int elements = sizeof(cl->answers)/sizeof(int);
 	int count=0;
+	//figure out number of answers in answers
 	while(j<elements){
 		if(cl->answers[j] == 1 || cl->answers[j] == 0){
 			count++;
 		}
 		j++;
 	}
+	//add new answer to end of answer
 	cl->answers[count] = answer;
 	elements += 1;
 	int k;
-	while(k<elements){
+	//traverse to where we left off
+	while(k<count){
 		prev = curr;
 		curr = find_branch(curr, cl->answers[k]);
 		k++;
 		i=i->next;
 	}
-	if(curr->node_type == LEAF){
+	if(curr->node_type == LEAF){ //if node is leaf test is done
 		user_list = prev->children[answer].fchild;
 		prev->children[answer].fchild = add_user(user_list, cl->usrname);
 		return 2;
-	}else{
+	}else{ //test not finished print next question located at current node
 		write(cl->fd, question_prompt, sizeof(question_prompt));
 		write(cl->fd, i->str, sizeof(i->str) - 1);
 		write(cl->fd, "\r\n", 2);
