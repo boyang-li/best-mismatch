@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
 								if (rc == -1) { // quit
 									//close connection for client
 									close(cl->fd);
-									removeClient(cl, cl_head);
+									removeClient(cl, cl_head, cl_tail);
 								} else if (rc == 1) { // no client name
 									if (validate_user(cl->buf) == 1) {
 										strncpy(cl->usrname, cl->buf, strlen(cl->buf)+1);
@@ -274,18 +274,27 @@ Client *addClient(int fd) {
 	return c;
 }
 
-void removeClient(Client *cl, Client *head) {
-	Client *cur;
+void removeClient(Client *cl, Client *head, Client *tail) {
 	// Traverse the the array untill we find our client
-	for (cur = head; cur->next; cur = cur->next) {
-		if (cur->next == cl) {
-			fprintf(stdout, "Removing client fd %d...\n", cl->fd);
-			fflush(stdout);
-			cur->next = cur->next->next;
-			free(cl->buf);
-			free(cl->usrname);
-			free(cl);
-			break;
+	if (head == cl){
+		fprintf(stdout, "Removing head %d...\n", cl->fd);
+		fflush(stdout);
+		head = NULL;
+		tail = NULL;
+	} else {
+		Client *cur;
+		for (cur = head; cur->next && (cur->next)!=cl; cur = cur->next) {
+			if (cur->next == cl) {
+				fprintf(stdout, "Removing client fd %d...\n", cl->fd);
+				fflush(stdout);
+				cur->next = cur->next->next;
+
+				break;
+			}
 		}
 	}
+
+	free(cl->buf);
+	free(cl->usrname);
+	free(cl);
 }

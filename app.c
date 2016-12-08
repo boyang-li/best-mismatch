@@ -147,9 +147,9 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 * user is now need to be disconnected. */
 		return -1; //done in main loop fdset is not passed into here
 
-	} else if (cl->usrname == NULL && cmd_argc == 1) {
+	} else if (strcmp(cl->usrname, "") == 0 && cmd_argc == 1) {
 		return 1;
-	}	else if (strcmp(cmd_argv[0], "do_test") == 0 && cmd_argc == 1) {
+	} else if (strcmp(cmd_argv[0], "do_test") == 0 && cmd_argc == 1) {
 		/* The specified user is ready to start answering questions. You
 		 * need to make sure that the user answers each question only
 		 * once.
@@ -165,7 +165,7 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 			return 0;
 		}
 
-		// cl->answers = process_answer(cl, cl->answer, qtree, interests);
+		cl->answers = process_answer(cl, qtree, interests);
 		// if(cl->answers[0]!=-2){
 
 		// cl->state = 1;
