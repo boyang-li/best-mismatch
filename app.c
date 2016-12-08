@@ -40,12 +40,12 @@ int validate_user(char *name){
 }
 
 int process_answer(Client *cl, int answer, QNode *root, Node *interests) {
- 	
-	
+
+
  	QNode *prev, *curr;
     prev = curr = root;
  	Node *i = interests;
-	int j;
+	int j=0;
 	int elements = sizeof(cl->answers)/sizeof(int);
 	int count=0;
 	//figure out number of answers in answers
@@ -57,7 +57,7 @@ int process_answer(Client *cl, int answer, QNode *root, Node *interests) {
 	}
 	//add new answer to end of answer
 	cl->answers[count] = answer;
-	int k;
+	int k=0;
 	//traverse to where we left off
 	while(k<count){
 		prev = curr;
@@ -191,10 +191,10 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 	//print invalid
 		 	return 0;
 		}else{
-		 	int status = process_answer(cl, validate_answer(cmd_argv[0]), qtree, interests);
-		 	if (status == 2){
-		 		cl->state = 2;
-		 	}
+		 	// int status = process_answer(cl, validate_answer(cmd_argv[0]), qtree, interests);
+		 	// if (status == 2){
+		 	// 	cl->state = 2;
+		 	// }
 		}
 		return 0;
 
@@ -235,17 +235,21 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		/* Send the specified message stored in cmd_argv[2] to the user
 		 * stored in cmd_argv[1].
 		 */
-		int sizebuf = sizeof(cmd_argv[2]);
+
 
 		//create new string to hold message
 		//new string needs to be larger by one to account for '\r\n'
-		char msg[sizebuf+1];
-		strcpy(msg,cmd_argv[2]);
-		msg[sizebuf]='\r';
-		msg[sizeof(msg)]='\n';
+		char msg[BUFSIZE];
+		strcpy(msg, "Message from \0");
+		strncat(msg, cl->usrname, strlen(cl->usrname)+1);
+		strcat(msg, ": \0");
+		strncat(msg,cmd_argv[2], strlen(cmd_argv[2])+1);
+		int len=strlen(msg);
+		msg[len]='\r';
+		msg[len+1]='\n';
 		//TODO remove later
-		printf("Client fd: %d posting '%s' to client name: %s", cl->fd, msg, cmd_argv[1]);
 		//search client linked list for client
+
 
 		Client *target;
 		for (target = head; target; target = target->next) {
@@ -257,15 +261,15 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		}
 
 		if (target){
-			write(target->fd, msg, sizeof(msg)-1);
+			write(target->fd, msg, len);
 		} else {
-			char *user_notfound = "Sorry! user not found!\r\n";
-			write(target->fd, user_notfound, sizeof(user_notfound)-1);
+
+			// write(target->fd, user_notfound, sizeof(user_notfound)-1);
 		}
 	}
 	else {
 		/* The input message is not properly formatted. */
-		error("Incorrect syntax");
+		printf("Incorrect syntax");
 	}
 	return 0;
 }

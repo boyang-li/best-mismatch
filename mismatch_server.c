@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
 			}
 		}
 
-		printf("looping. maxfd: %d\n", maxfd);
+		// printf("looping. maxfd: %d\n", maxfd);
 		if (select(maxfd + 1, &fdlist, NULL, NULL, NULL) < 0) {
 			error("select");
 		} else {
