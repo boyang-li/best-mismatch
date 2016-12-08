@@ -1,9 +1,10 @@
 #include <ctype.h>
 #include "app.h"
 
+int *play_game();
 int validate_answer(char *answer);
 void wrap_up();
-void print_friends(Node *list, char *name);
+void print_mismatches(Node *list, char *name);
 char *question_prompt = "Do you like %s? (y/n)\n";
 /*
  * Utility methods
@@ -33,19 +34,18 @@ int validate_user(char *name){
 	return valid;
 }
 
-char *play_game(){
+int *play_game(){
 	char answer[MAX_LINE];
 	char *ans_arr;
 	
 	QNode *current = root;
-	short in_game = 0;
 	printf("Collecting your interests\n");
 	QNode *prev, *curr;
     prev = curr = root;
 	Node *i = interests;
 	int ans;
 	int index=0;
-	ans_arr = (char*) malloc(sizeof(char));
+	ans_arr = (int*) malloc(sizeof(int));
 	while (i){
 		printf(question_prompt, i->str);
                 
@@ -57,17 +57,18 @@ char *play_game(){
         if (ans == 2)
 			continue;
                     
-        prev = curr;
+		prev = curr;
         curr = find_branch(curr, ans);
 		ans_arr[index] = ans;
-		ans_arr = realloc(ans_arr, ((index+1)*sizeof(char));
+		ans_arr = realloc(ans_arr, ((index+1)*sizeof(int));
         i = i->next;
 		index += 1;
     }
 	// add user to the end of the list
-	char *answers[(sizeof(ans_arr) - 1)];
-	memccpy(answers, ans_arr, sizeof(answers));
+	int *answers[(sizeof(ans_arr) - 1)];
+	answers = ans_arr;
 	free(ans_arr);
+	
 	user_list = prev->children[ans].fchild;
     prev->children[ans].fchild = add_user(user_list, name);
 	printf("Test complete.");
@@ -121,9 +122,28 @@ int process_args(int cmd_argc, char **cmd_argv, QNode **root, Node *interests,
 		 * user. If the user has not taked the test yet, return the
 		 * corresponding error value (different than 0 and -1).
 		 */
+		
 		if(current_client->state == 0){
 			return -2;
 		}
+		char *ans_list[sizeof(current_client->answers)];
+		ans_list = current_client->answers;
+		int i;
+		QNode *current = root;
+		QNode *prev, *curr;
+		prev = curr = root;
+		int ans;
+		for (i=0,i<(sizeof(ans_list)/sizeof(int)), i++){
+			if(ans_list[i] == 1){
+				ans = 0;
+			}else{
+				ans = 1;
+			}
+			prev = curr;
+			curr = find_branch(curr, ans);
+		}
+		user_list = prev->children[ans].fchild;
+		print_mismatches(user_list, current_client->usrname);
 		return 0;
 		
 	} else if (strcmp(cmd_argv[0], "post") == 0 && cmd_argc == 3) {
@@ -202,41 +222,38 @@ int validate_answer(char *answer){
         wrap_up();
         
     if (answer[0] == 'n' || answer[0] == 'N')
-        return 1;
+        return 0;
         
     if (answer[0] == 'y' || answer[0] == 'Y')
-        return 0;
+        return 1;
         
     printf("%s", invalid_message);
     return 2;
 }
 
-void print_friends(Node *list, char *name){
-    int friends = 0;
+// print list of potential mismatches for user
+void print_mismatches(Node *list, char *name){
+    int mismatch = 0;
+	
 
-    // iterate over user list and count the number of friends
+    // iterate over user list and count the number of mismatchs
     while (list) {
 	// ignore this user
         if (strcmp(list->str, name)) {
-            friends++;
+            mismatch++;
              
-	    // if this is the first friend found, print successful message    
-            if (friends == 1)
-                printf(pos_result1, name);
+	    // if this is the first mismatch found, print successful message    
+            if (mismatch == 1)
+                printf("Here are you best mismatches:\n" );
             
-	    // if friend was found, print his/her name
-            printf("%s, ", list->str);
+	    // if mismatch was found, print his/her name
+            printf("%s\n", list->str);
         }
             
         list = list->next;
     }
-    
-    // if friends were found, print the number of friends    
-    if (friends){
-        printf("\n");
-        printf(pos_result2, friends);
         
-    } else {
-        printf("%s", neg_result);    
-    }
+    if (mismatch == 0){
+        printf("No completing personalities found. Please try again later\n");
+    }    
 }
